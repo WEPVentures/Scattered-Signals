@@ -26,8 +26,10 @@ export function renderBodyCopy(bodyCopy) {
 
 const TIER_LABEL = { 1: "Tier 1", "1": "Tier 1", 2: "Tier 2", "2": "Tier 2", 3: "Tier 3", "3": "Tier 3" };
 
-function renderEvidenceItem(item) {
+/** number = this item's position in the evidence list, 1-based — matches the numbered dot on the chart above. */
+function renderEvidenceItem(item, number) {
   return `      <li class="evidence-item">
+        <span class="evidence-number">${number}</span>
         <span class="evidence-tier pill">${TIER_LABEL[item.tier]}</span>
         <span class="evidence-text">
           ${escapeHtml(item.source_name)}
@@ -38,13 +40,19 @@ function renderEvidenceItem(item) {
 
 const EVIDENCE_VISIBLE_MAX = 3;
 
-/** First 3 evidence items always visible; the rest sit behind a native <details> accordion. */
+/**
+ * First 3 evidence items always visible; the rest sit behind a native
+ * <details> accordion. Numbers are the item's position in this list
+ * (stable regardless of chart order) — renderChartSection uses the same
+ * numbers so a reader can match a dot back to its source.
+ */
 function renderEvidenceSection(evidence) {
-  const visible = evidence.slice(0, EVIDENCE_VISIBLE_MAX);
-  const hidden = evidence.slice(EVIDENCE_VISIBLE_MAX);
+  const numbered = evidence.map((item, i) => ({ item, number: i + 1 }));
+  const visible = numbered.slice(0, EVIDENCE_VISIBLE_MAX);
+  const hidden = numbered.slice(EVIDENCE_VISIBLE_MAX);
 
   const visibleHtml = `    <ul class="evidence-list">
-${visible.map(renderEvidenceItem).join("\n")}
+${visible.map(({ item, number }) => renderEvidenceItem(item, number)).join("\n")}
     </ul>`;
 
   if (hidden.length === 0) return visibleHtml;
@@ -53,7 +61,7 @@ ${visible.map(renderEvidenceItem).join("\n")}
     <details class="evidence-more">
       <summary>Show ${hidden.length} more</summary>
       <ul class="evidence-list">
-${hidden.map(renderEvidenceItem).join("\n")}
+${hidden.map(({ item, number }) => renderEvidenceItem(item, number)).join("\n")}
       </ul>
     </details>`;
 }
@@ -65,9 +73,17 @@ const PREMISE_STRENGTH_TICKS = [
   { value: 0, label: "Collapsed" },
 ];
 
-/** Chart points come pre-computed (evidenceToChartPoints from packages/core) — this just draws them. */
-function renderChartSection(chartPoints) {
+/**
+ * Chart points come pre-computed (evidenceToChartPoints from packages/core)
+ * — this just draws them. `evidence` is the same array/order used to
+ * number the evidence list below, so each dot can be labeled with the same
+ * number as its source in that list — otherwise there's no way to tell
+ * which dot is which source.
+ */
+function renderChartSection(chartPoints, evidence) {
   if (chartPoints.length === 0) return "";
+
+  const numberByEvidenceId = new Map(evidence.map((item, i) => [item.id, i + 1]));
 
   const PLOT_LEFT = 92;
   const PLOT_RIGHT = 580;
@@ -81,7 +97,11 @@ function renderChartSection(chartPoints) {
 
   const polyline = points.map((p) => `${p.px.toFixed(1)},${p.py.toFixed(1)}`).join(" ");
   const circles = points
-    .map((p) => `      <circle cx="${p.px.toFixed(1)}" cy="${p.py.toFixed(1)}" r="4" fill="#1d1d1f"/>`)
+    .map((p) => {
+      const number = numberByEvidenceId.get(p.evidenceId);
+      return `      <circle cx="${p.px.toFixed(1)}" cy="${p.py.toFixed(1)}" r="9" fill="#1d1d1f"/>
+      <text x="${p.px.toFixed(1)}" y="${(p.py + 3.5).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="600" fill="#ffffff">${number}</text>`;
+    })
     .join("\n");
 
   const axis = `      <line x1="${PLOT_LEFT}" y1="15" x2="${PLOT_LEFT}" y2="125" stroke="#d2d2d7" stroke-width="1"/>
@@ -98,7 +118,7 @@ ${PREMISE_STRENGTH_TICKS.map(
   // clutter in the first place.
   const ROW_HEIGHT = 20;
   const ROW_COUNT = 3;
-  const LABEL_WIDTH = 76;
+  const LABEL_WIDTH = 100; // wide enough for "N Mon DD, YYYY" on one line at 11.5px
   const PADDING = 10;
   const rowRightEdge = new Array(ROW_COUNT).fill(-Infinity);
 
@@ -121,7 +141,8 @@ ${PREMISE_STRENGTH_TICKS.map(
         day: "numeric",
         year: "numeric",
       });
-      return `      <div class="chart-point-label" style="left:${((p.px / 600) * 100).toFixed(2)}%; top:${row * ROW_HEIGHT}px; text-align:${align}; transform:translateX(${translate});">${escapeHtml(dateLabel)}</div>`;
+      const number = numberByEvidenceId.get(p.evidenceId);
+      return `      <div class="chart-point-label" style="left:${((p.px / 600) * 100).toFixed(2)}%; top:${row * ROW_HEIGHT}px; text-align:${align}; transform:translateX(${translate});"><strong>${number}</strong> ${escapeHtml(dateLabel)}</div>`;
     })
     .join("\n");
 
@@ -211,7 +232,7 @@ ${GENERATED_NOTICE}
   <div class="body-copy">
 ${renderBodyCopy(bodyCopy)}
   </div>
-${renderChartSection(chartPoints)}
+${renderChartSection(chartPoints, evidence)}
 ${renderClaimCard(claimCopy)}
 
   <div class="evidence-section">

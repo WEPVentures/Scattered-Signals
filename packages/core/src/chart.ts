@@ -15,4 +15,5 @@ export interface ChartPoint {
   y: number; // 0 (collapsed) .. 3 (high)
   label: string;
   isoDate: string;
+  evidenceId: string; // lets the caller cross-reference this point back to the evidence list
 }

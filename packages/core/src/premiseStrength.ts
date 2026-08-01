@@ -90,5 +90,6 @@ export function evidenceToChartPoints(evidence: Evidence[]): ChartPoint[] {
     y: CONFIDENCE_Y[point.label],
     label: point.evidence.sourceName,
     isoDate: point.date,
+    evidenceId: point.evidence.id,
   }));
 }
