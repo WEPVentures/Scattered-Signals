@@ -102,7 +102,17 @@ export function SignalEditor() {
     setError(null);
     setNotice(null);
     try {
-      const savedSignal = await upsertSignal({ ...signal, id: isNew ? undefined : id });
+      // One complete upsert, not a full write followed by a partial
+      // "just flip status" write — Supabase's upsert() builds a full
+      // candidate row to validate against the table's constraints (NOT
+      // NULL on slug, etc.), so a partial second write with only
+      // {id, status, published_at} fails before it ever reaches the
+      // ON CONFLICT update.
+      const savedSignal = await upsertSignal({
+        ...signal,
+        id: isNew ? undefined : id,
+        ...(publish ? { status: "published" as const, published_at: new Date().toISOString() } : {}),
+      });
 
       await replaceEvidence(
         savedSignal.id,
@@ -132,11 +142,6 @@ export function SignalEditor() {
       }
 
       if (publish) {
-        const published = await upsertSignal({
-          id: savedSignal.id,
-          status: "published",
-          published_at: new Date().toISOString(),
-        });
         const { data: sessionData } = await supabase.auth.getSession();
         const res = await fetch("/.netlify/functions/publish-signal", {
           method: "POST",
@@ -144,7 +149,7 @@ export function SignalEditor() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${sessionData.session?.access_token ?? ""}`,
           },
-          body: JSON.stringify({ signalId: published.id }),
+          body: JSON.stringify({ signalId: savedSignal.id }),
         });
         if (!res.ok) throw new Error(`Publish trigger failed: ${await res.text()}`);
         setNotice("Published — the public site will rebuild in about a minute.");
