@@ -58,15 +58,24 @@ ${hidden.map(renderEvidenceItem).join("\n")}
     </details>`;
 }
 
+const PREMISE_STRENGTH_TICKS = [
+  { value: 3, label: "High" },
+  { value: 2, label: "Moderate" },
+  { value: 1, label: "Low" },
+  { value: 0, label: "Collapsed" },
+];
+
 /** Chart points come pre-computed (evidenceToChartPoints from packages/core) — this just draws them. */
 function renderChartSection(chartPoints) {
   if (chartPoints.length === 0) return "";
 
+  const PLOT_LEFT = 92;
+  const PLOT_RIGHT = 580;
   const toY = (y) => 120 - (y / 3) * 100; // 0..3 scale -> 120..20 px within a 140-tall viewBox
 
   const points = chartPoints.map((p) => ({
     ...p,
-    px: 20 + p.x * 560,
+    px: PLOT_LEFT + p.x * (PLOT_RIGHT - PLOT_LEFT),
     py: toY(p.y),
   }));
 
@@ -75,19 +84,23 @@ function renderChartSection(chartPoints) {
     .map((p) => `      <circle cx="${p.px.toFixed(1)}" cy="${p.py.toFixed(1)}" r="4" fill="#1d1d1f"/>`)
     .join("\n");
 
+  const axis = `      <line x1="${PLOT_LEFT}" y1="15" x2="${PLOT_LEFT}" y2="125" stroke="#d2d2d7" stroke-width="1"/>
+${PREMISE_STRENGTH_TICKS.map(
+    (t) => `      <text x="${PLOT_LEFT - 10}" y="${toY(t.value) + 4}" text-anchor="end" font-size="11" fill="#86868b">${t.label}</text>`,
+  ).join("\n")}`;
+
   // Row assignment based on each label's actual left/right extent (which
   // depends on its alignment — a right-aligned label extends leftward from
   // its dot, not rightward), not just dot-to-dot distance. A simple gap
   // check on dot position alone under-counts overlap for edge labels.
-  const ROW_HEIGHT = 30;
-  const ROW_COUNT = 4;
-  const LABEL_WIDTH = 118;
+  // Labels are date-only — the full source name is one scroll away in the
+  // evidence list, and cramming it into the chart is what caused the
+  // clutter in the first place.
+  const ROW_HEIGHT = 20;
+  const ROW_COUNT = 3;
+  const LABEL_WIDTH = 76;
   const PADDING = 10;
   const rowRightEdge = new Array(ROW_COUNT).fill(-Infinity);
-
-  function truncate(text, max) {
-    return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
-  }
 
   const labels = points
     .map((p, i) => {
@@ -108,20 +121,20 @@ function renderChartSection(chartPoints) {
         day: "numeric",
         year: "numeric",
       });
-      return `      <div class="chart-point-label" style="left:${(p.x * 100).toFixed(2)}%; top:${row * ROW_HEIGHT}px; text-align:${align}; transform:translateX(${translate});">
-        <span class="ev-date">${escapeHtml(dateLabel)}</span>${escapeHtml(truncate(p.label, 22))}
-      </div>`;
+      return `      <div class="chart-point-label" style="left:${((p.px / 600) * 100).toFixed(2)}%; top:${row * ROW_HEIGHT}px; text-align:${align}; transform:translateX(${translate});">${escapeHtml(dateLabel)}</div>`;
     })
     .join("\n");
 
   return `
   <div class="chart-section">
     <h2 class="section-heading">Premise Strength Over Time</h2>
+    <p class="chart-caption">Rising means the evidence is accumulating in support of the premise. Falling means it's moving against it.</p>
     <svg viewBox="0 0 600 140" preserveAspectRatio="none">
+${axis}
       <polyline points="${polyline}" fill="none" stroke="#1d1d1f" stroke-width="2"/>
 ${circles}
     </svg>
-    <div class="chart-point-labels" style="height:${ROW_COUNT * ROW_HEIGHT + 20}px;">
+    <div class="chart-point-labels" style="height:${ROW_COUNT * ROW_HEIGHT + 12}px;">
 ${labels}
     </div>
   </div>`;
