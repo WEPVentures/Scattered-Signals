@@ -58,6 +58,75 @@ ${hidden.map(renderEvidenceItem).join("\n")}
     </details>`;
 }
 
+/** Chart points come pre-computed (evidenceToChartPoints from packages/core) — this just draws them. */
+function renderChartSection(chartPoints) {
+  if (chartPoints.length === 0) return "";
+
+  const toY = (y) => 120 - (y / 3) * 100; // 0..3 scale -> 120..20 px within a 140-tall viewBox
+
+  const points = chartPoints.map((p) => ({
+    ...p,
+    px: 20 + p.x * 560,
+    py: toY(p.y),
+  }));
+
+  const polyline = points.map((p) => `${p.px.toFixed(1)},${p.py.toFixed(1)}`).join(" ");
+  const circles = points
+    .map((p) => `      <circle cx="${p.px.toFixed(1)}" cy="${p.py.toFixed(1)}" r="4" fill="#1d1d1f"/>`)
+    .join("\n");
+
+  // Row assignment based on each label's actual left/right extent (which
+  // depends on its alignment — a right-aligned label extends leftward from
+  // its dot, not rightward), not just dot-to-dot distance. A simple gap
+  // check on dot position alone under-counts overlap for edge labels.
+  const ROW_HEIGHT = 30;
+  const ROW_COUNT = 4;
+  const LABEL_WIDTH = 118;
+  const PADDING = 10;
+  const rowRightEdge = new Array(ROW_COUNT).fill(-Infinity);
+
+  function truncate(text, max) {
+    return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+  }
+
+  const labels = points
+    .map((p, i) => {
+      const isFirst = i === 0;
+      const isLast = i === points.length - 1;
+      const align = isFirst ? "left" : isLast ? "right" : "center";
+      const translate = isFirst ? "0" : isLast ? "-100%" : "-50%";
+
+      const left = isFirst ? p.px : isLast ? p.px - LABEL_WIDTH : p.px - LABEL_WIDTH / 2;
+      const right = isFirst ? p.px + LABEL_WIDTH : isLast ? p.px : p.px + LABEL_WIDTH / 2;
+
+      let row = rowRightEdge.findIndex((edge) => left >= edge + PADDING);
+      if (row === -1) row = rowRightEdge.indexOf(Math.min(...rowRightEdge));
+      rowRightEdge[row] = right;
+
+      const dateLabel = new Date(p.isoDate).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+      return `      <div class="chart-point-label" style="left:${(p.x * 100).toFixed(2)}%; top:${row * ROW_HEIGHT}px; text-align:${align}; transform:translateX(${translate});">
+        <span class="ev-date">${escapeHtml(dateLabel)}</span>${escapeHtml(truncate(p.label, 22))}
+      </div>`;
+    })
+    .join("\n");
+
+  return `
+  <div class="chart-section">
+    <h2 class="section-heading">Premise Strength Over Time</h2>
+    <svg viewBox="0 0 600 140" preserveAspectRatio="none">
+      <polyline points="${polyline}" fill="none" stroke="#1d1d1f" stroke-width="2"/>
+${circles}
+    </svg>
+    <div class="chart-point-labels" style="height:${ROW_COUNT * ROW_HEIGHT + 20}px;">
+${labels}
+    </div>
+  </div>`;
+}
+
 function renderInline(text) {
   return escapeHtml(text).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 }
@@ -81,7 +150,7 @@ const VELOCITY_LABEL = { rising: "Rising", falling: "Falling", steady: "Steady" 
  * segmented then/now control (Reflecting Pool) is Phase 3 dashboard scope —
  * this function intentionally doesn't try to guess that shape yet.
  */
-export function renderSignalPage({ signal, categoryLabel, eyebrowLabel, bodyCopy, watchingText, evidence, clusterCount, claimCopy }) {
+export function renderSignalPage({ signal, categoryLabel, eyebrowLabel, bodyCopy, watchingText, evidence, clusterCount, claimCopy, premiseStrength, chartPoints }) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -113,8 +182,8 @@ ${GENERATED_NOTICE}
 
   <div class="meta-row">
     <div class="meta-item">
-      <span class="label">Confidence</span>
-      <span class="value">${CONFIDENCE_LABEL[signal.confidence]}</span>
+      <span class="label">Premise Strength</span>
+      <span class="value">${CONFIDENCE_LABEL[premiseStrength]}</span>
     </div>
     <div class="meta-item">
       <span class="label">Velocity</span>
@@ -129,6 +198,7 @@ ${GENERATED_NOTICE}
   <div class="body-copy">
 ${renderBodyCopy(bodyCopy)}
   </div>
+${renderChartSection(chartPoints)}
 ${renderClaimCard(claimCopy)}
 
   <div class="evidence-section">
@@ -229,7 +299,7 @@ ${rows.map(renderSignalRow).join("\n")}
 <footer class="site-footer">
   <div class="site-footer-inner">
     <p>Scattered Signals — context, not content.</p>
-    <p>Every signal here is a living page. Evidence accumulates, confidence updates, nothing is finished.</p>
+    <p>Every signal here is a living page. Evidence accumulates, Premise Strength updates, nothing is finished.</p>
   </div>
 </footer>
 

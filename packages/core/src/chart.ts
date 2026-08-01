@@ -1,6 +1,9 @@
-import type { ConfidenceSnapshot } from "./types.ts";
+import type { ConfidenceLevel } from "./types.ts";
 
-const CONFIDENCE_Y: Record<ConfidenceSnapshot["confidence"], number> = {
+// Shared Y-scale: every chart on the site plots the same four levels at the
+// same heights, so "collapsed" always sits at the bottom and "high" always
+// sits at the top regardless of which signal you're looking at.
+export const CONFIDENCE_Y: Record<ConfidenceLevel, number> = {
   collapsed: 0,
   low: 1,
   moderate: 2,
@@ -12,24 +15,4 @@ export interface ChartPoint {
   y: number; // 0 (collapsed) .. 3 (high)
   label: string;
   isoDate: string;
-}
-
-/** Maps confidence_snapshots (oldest first) onto normalized chart points for the SVG trajectory. */
-export function snapshotsToChartPoints(
-  snapshotsOldestFirst: ConfidenceSnapshot[],
-): ChartPoint[] {
-  if (snapshotsOldestFirst.length === 0) return [];
-
-  const first = new Date(snapshotsOldestFirst[0].recordedAt).getTime();
-  const last = new Date(
-    snapshotsOldestFirst[snapshotsOldestFirst.length - 1].recordedAt,
-  ).getTime();
-  const span = last - first || 1;
-
-  return snapshotsOldestFirst.map((snap) => ({
-    x: (new Date(snap.recordedAt).getTime() - first) / span,
-    y: CONFIDENCE_Y[snap.confidence],
-    label: snap.note ?? snap.confidence,
-    isoDate: snap.recordedAt,
-  }));
 }

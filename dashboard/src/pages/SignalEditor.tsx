@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { formatClaimStatus, computeClusterCount } from "@scattered-signals/core";
+import { formatClaimStatus, computeClusterCount, currentPremiseStrength } from "@scattered-signals/core";
 import type { Signal } from "@scattered-signals/core";
 import {
   listCategories,
@@ -36,6 +36,13 @@ const emptySignal: Partial<SignalRow> = {
   claim_outcome: null,
   claim_resolution_note: null,
   status: "draft",
+};
+
+const PREMISE_STRENGTH_LABEL: Record<Signal["confidence"], string> = {
+  low: "Low",
+  moderate: "Moderate",
+  high: "High",
+  collapsed: "Collapsed",
 };
 
 export function SignalEditor() {
@@ -94,9 +101,11 @@ export function SignalEditor() {
       claimPreviewError = errorMessage(e);
     }
   }
-  const clusterCount = computeClusterCount(
-    evidenceRows.map((r, i) => toCoreEvidence({ ...r, id: String(i), signal_id: "", created_at: "" })),
+  const coreEvidencePreview = evidenceRows.map((r, i) =>
+    toCoreEvidence({ ...r, id: String(i), signal_id: "", created_at: "" }),
   );
+  const clusterCount = computeClusterCount(coreEvidencePreview);
+  const computedPremiseStrength = currentPremiseStrength(coreEvidencePreview);
 
   async function handleSave(publish: boolean) {
     setSaving(true);
@@ -112,6 +121,10 @@ export function SignalEditor() {
       const savedSignal = await upsertSignal({
         ...signal,
         id: isNew ? undefined : id,
+        // Kept in sync with the computed value on every save — this column
+        // is no longer hand-set, but stays a useful cached snapshot rather
+        // than drifting from whatever it was initialized to.
+        confidence: computedPremiseStrength,
         ...(publish ? { status: "published" as const, published_at: new Date().toISOString() } : {}),
       });
 
@@ -231,7 +244,7 @@ export function SignalEditor() {
 
       <label style={fieldStyle}>
         Homepage meta line (shown after the category, e.g. "Moderate
-        confidence · Rising · 3 clusters · Claim pending Q1 2027")
+        premise strength · Rising · 3 clusters · Claim pending Q1 2027")
         <input
           value={signal.homepage_meta ?? ""}
           onChange={(e) => setSignal({ ...signal, homepage_meta: e.target.value })}
@@ -268,19 +281,11 @@ export function SignalEditor() {
         />
       </label>
 
-      <label style={fieldStyle}>
-        Confidence
-        <select
-          value={signal.confidence}
-          onChange={(e) => setSignal({ ...signal, confidence: e.target.value as Signal["confidence"] })}
-          style={inputStyle}
-        >
-          <option value="low">Low</option>
-          <option value="moderate">Moderate</option>
-          <option value="high">High</option>
-          <option value="collapsed">Collapsed</option>
-        </select>
-      </label>
+      <p style={{ fontSize: 13, color: "#6e6e73", margin: "0 0 4px 0" }}>
+        Premise Strength: <strong style={{ color: "#1d1d1f" }}>{PREMISE_STRENGTH_LABEL[computedPremiseStrength]}</strong> —
+        computed automatically from your evidence (tier, direction, and source date). This is what
+        the public page shows; there's nothing to set by hand.
+      </p>
 
       <label style={fieldStyle}>
         Velocity

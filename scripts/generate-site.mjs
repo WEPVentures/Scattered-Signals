@@ -9,7 +9,12 @@
 import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { formatClaimStatus, computeClusterCount } from "../packages/core/src/index.ts";
+import {
+  formatClaimStatus,
+  computeClusterCount,
+  currentPremiseStrength,
+  evidenceToChartPoints,
+} from "../packages/core/src/index.ts";
 import { renderSignalPage, renderIndexPage } from "./render.mjs";
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -122,6 +127,8 @@ async function main() {
     const coreSignal = toCoreSignal(signal, category.slug);
     const coreEvidence = toCoreEvidenceList(evidence);
     const clusterCount = computeClusterCount(coreEvidence);
+    const premiseStrength = currentPremiseStrength(coreEvidence);
+    const chartPoints = evidenceToChartPoints(coreEvidence);
 
     let claimCopy;
     try {
@@ -143,6 +150,8 @@ async function main() {
       evidence,
       clusterCount,
       claimCopy,
+      premiseStrength,
+      chartPoints,
     });
 
     await mkdir(path.join(ROOT, "signals"), { recursive: true });

@@ -365,7 +365,7 @@ a.signal-row:hover {
   display: block;
 }
 
-/* ---------- Confidence-over-time chart ---------- */
+/* ---------- Premise Strength over time chart ---------- */
 
 .chart-section {
   padding: 32px 0 8px 0;
@@ -396,6 +396,30 @@ a.signal-row:hover {
 }
 
 .chart-labels .ev-date {
+  display: block;
+  color: var(--text-faint);
+  margin-bottom: 2px;
+}
+
+/* Proportionally-positioned labels for generated charts with a variable
+   number of points (unlike the fixed 4-column .chart-labels above). */
+.chart-point-labels {
+  position: relative;
+  height: 72px;
+  margin: 4px 0 20px 0;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.chart-point-label {
+  position: absolute;
+  width: 118px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.chart-point-label .ev-date {
   display: block;
   color: var(--text-faint);
   margin-bottom: 2px;

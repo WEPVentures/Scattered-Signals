@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>About — Scattered Signals</title>
-<meta name="description" content="How Scattered Signals scores confidence, tracks evidence, and resolves claims.">
+<meta name="description" content="How Scattered Signals scores premise strength, tracks evidence, and resolves claims.">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -30,30 +30,30 @@
     <ul class="definition-list">
       <li class="definition-item">
         <span class="definition-term">Long-running trends</span>
-        <span class="definition-text">Patterns that may take years to fully resolve, if they ever do. We update confidence as new evidence arrives, without forcing a premature conclusion.</span>
+        <span class="definition-text">Patterns that may take years to fully resolve, if they ever do. Premise Strength updates as new evidence arrives, without forcing a premature conclusion.</span>
       </li>
       <li class="definition-item">
         <span class="definition-term">Bounded claims</span>
         <span class="definition-text">Specific, dated commitments — a price, a date, a charge — that resolve in weeks or months. These get scored once the outcome is known.</span>
       </li>
     </ul>
-    <p class="body-copy" style="padding-top:16px; font-size:16px; color: var(--text-secondary);">Both are tracked the same way: evidence accumulates, confidence updates, and nothing is treated as resolved until it actually is.</p>
+    <p class="body-copy" style="padding-top:16px; font-size:16px; color: var(--text-secondary);">Both are tracked the same way: evidence accumulates, Premise Strength updates, and nothing is treated as resolved until it actually is.</p>
   </div>
 
   <div class="definition-section">
     <h2 class="section-heading">How We Score a Signal</h2>
     <ul class="definition-list">
       <li class="definition-item">
-        <span class="definition-term">Confidence</span>
-        <span class="definition-text">How much the current evidence supports the claim — Low, Moderate, or High.</span>
+        <span class="definition-term">Premise Strength</span>
+        <span class="definition-text">How closely the accumulated evidence still lines up with the premise a signal started with — Low, Moderate, High, or Collapsed. This isn't a belief we're asserting: it's computed directly from each piece of evidence's tier and direction, plotted against when that evidence actually came out. We're not telling you how much to believe something — we're reporting how the evidence has moved.</span>
       </li>
       <li class="definition-item">
         <span class="definition-term">Velocity</span>
-        <span class="definition-text">Which direction confidence is currently moving — Rising, Falling, or Steady.</span>
+        <span class="definition-text">Which direction Premise Strength is currently moving — Rising, Falling, or Steady.</span>
       </li>
       <li class="definition-item">
         <span class="definition-term">Clusters</span>
-        <span class="definition-text">The number of independent lines of evidence behind the current confidence level — not just repeated mentions of the same source.</span>
+        <span class="definition-text">The number of independent lines of evidence behind the current Premise Strength — not just repeated mentions of the same source.</span>
       </li>
       <li class="definition-item">
         <span class="definition-term">Tier</span>
