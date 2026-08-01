@@ -513,6 +513,46 @@ a.signal-row:hover {
   margin-top: 4px;
 }
 
+/* ---------- Evidence "show more" accordion (native <details>) ---------- */
+
+.evidence-more {
+  margin: 0;
+}
+
+.evidence-more > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 14px;
+  color: var(--accent);
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+}
+
+.evidence-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.evidence-more > summary::before {
+  content: "";
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-right: 8px;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--accent);
+  vertical-align: middle;
+  transition: transform 0.15s ease;
+}
+
+.evidence-more[open] > summary::before {
+  transform: rotate(-180deg);
+}
+
+.evidence-more .evidence-list {
+  margin-top: 0;
+}
+
 /* ---------- Watching ---------- */
 
 .watching {

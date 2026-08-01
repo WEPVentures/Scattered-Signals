@@ -36,6 +36,28 @@ function renderEvidenceItem(item) {
       </li>`;
 }
 
+const EVIDENCE_VISIBLE_MAX = 3;
+
+/** First 3 evidence items always visible; the rest sit behind a native <details> accordion. */
+function renderEvidenceSection(evidence) {
+  const visible = evidence.slice(0, EVIDENCE_VISIBLE_MAX);
+  const hidden = evidence.slice(EVIDENCE_VISIBLE_MAX);
+
+  const visibleHtml = `    <ul class="evidence-list">
+${visible.map(renderEvidenceItem).join("\n")}
+    </ul>`;
+
+  if (hidden.length === 0) return visibleHtml;
+
+  return `${visibleHtml}
+    <details class="evidence-more">
+      <summary>Show ${hidden.length} more</summary>
+      <ul class="evidence-list">
+${hidden.map(renderEvidenceItem).join("\n")}
+      </ul>
+    </details>`;
+}
+
 function renderInline(text) {
   return escapeHtml(text).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 }
@@ -111,9 +133,7 @@ ${renderClaimCard(claimCopy)}
 
   <div class="evidence-section">
     <h2 class="section-heading">Supporting Evidence</h2>
-    <ul class="evidence-list">
-${evidence.map(renderEvidenceItem).join("\n")}
-    </ul>
+${renderEvidenceSection(evidence)}
   </div>
 
   ${watchingText ? `<div class="watching">
