@@ -1,17 +1,33 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listSignals, type SignalRow } from "../lib/db";
+import { deleteSignal } from "../lib/deleteSignal";
 import { errorMessage } from "../lib/errorMessage";
 
 export function SignalList() {
   const [signals, setSignals] = useState<SignalRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     listSignals()
       .then(setSignals)
       .catch((e) => setError(errorMessage(e)));
   }, []);
+
+  async function handleDelete(s: SignalRow) {
+    if (!confirm(`Delete "${s.title}"? This can't be undone.`)) return;
+    setDeletingId(s.id);
+    setError(null);
+    try {
+      await deleteSignal(s.id);
+      setSignals((prev) => prev?.filter((row) => row.id !== s.id) ?? prev);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div style={{ maxWidth: 800, margin: "40px auto", fontFamily: "sans-serif" }}>
@@ -31,6 +47,16 @@ export function SignalList() {
               </td>
               <td style={{ color: "#6e6e73" }}>{s.type}</td>
               <td style={{ color: "#6e6e73" }}>{s.status}</td>
+              <td style={{ textAlign: "right" }}>
+                <button
+                  type="button"
+                  disabled={deletingId === s.id}
+                  onClick={() => handleDelete(s)}
+                  style={{ color: "#a6291e", background: "none", border: "none", cursor: "pointer" }}
+                >
+                  {deletingId === s.id ? "Deleting…" : "Delete"}
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>

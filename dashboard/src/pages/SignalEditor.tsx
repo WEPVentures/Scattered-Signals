@@ -18,6 +18,7 @@ import {
 } from "../lib/db";
 import { EvidenceEditor, type DraftEvidenceRow } from "../components/EvidenceEditor";
 import { supabase } from "../lib/supabaseClient";
+import { deleteSignal } from "../lib/deleteSignal";
 import { errorMessage } from "../lib/errorMessage";
 
 const emptySignal: Partial<SignalRow> = {
@@ -57,6 +58,7 @@ export function SignalEditor() {
   const [evidenceRows, setEvidenceRows] = useState<DraftEvidenceRow[]>([]);
   const [previousConfidence, setPreviousConfidence] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -177,6 +179,20 @@ export function SignalEditor() {
       setError(errorMessage(e));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (isNew) return;
+    if (!confirm(`Delete "${signal.title}"? This can't be undone.`)) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteSignal(id!);
+      navigate("/signals", { replace: true });
+    } catch (e) {
+      setError(errorMessage(e));
+      setDeleting(false);
     }
   }
 
@@ -390,13 +406,25 @@ export function SignalEditor() {
       {error && <p style={{ color: "#a6291e" }}>{error}</p>}
       {notice && <p style={{ color: "#2f7a4d" }}>{notice}</p>}
 
-      <div style={{ marginTop: 24, display: "flex", gap: 12 }}>
-        <button type="button" disabled={saving} onClick={() => handleSave(false)}>
-          Save draft
-        </button>
-        <button type="button" disabled={saving} onClick={() => handleSave(true)}>
-          Publish
-        </button>
+      <div style={{ marginTop: 24, display: "flex", gap: 12, justifyContent: "space-between" }}>
+        <div style={{ display: "flex", gap: 12 }}>
+          <button type="button" disabled={saving} onClick={() => handleSave(false)}>
+            Save draft
+          </button>
+          <button type="button" disabled={saving} onClick={() => handleSave(true)}>
+            Publish
+          </button>
+        </div>
+        {!isNew && (
+          <button
+            type="button"
+            disabled={deleting}
+            onClick={handleDelete}
+            style={{ color: "#a6291e", background: "none", border: "1px solid #a6291e", borderRadius: 6, padding: "6px 12px", cursor: "pointer" }}
+          >
+            {deleting ? "Deleting…" : "Delete signal"}
+          </button>
+        )}
       </div>
     </div>
   );
