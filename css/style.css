@@ -11,6 +11,7 @@
   --accent: #0071e3;
   --pill-bg: #f5f5f7;
   --muted-red: #a6291e;
+  --muted-green: #2f7a4d;
   --content-width: 692px;
   --header-width: 980px;
 }
@@ -235,11 +236,22 @@ a.signal-row:hover {
   white-space: nowrap;
 }
 
-.status-resolved {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--muted-red);
+.status-pill {
+  display: inline-block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 4px 12px;
   white-space: nowrap;
+}
+
+.status-pill.missed {
+  background: var(--muted-red);
+}
+
+.status-pill.hit {
+  background: var(--muted-green);
 }
 
 /* ---------- Signal detail page ---------- */

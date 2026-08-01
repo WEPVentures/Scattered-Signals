@@ -26,7 +26,8 @@
   </section>
 
   <section>
-    <div class="filter-pills" role="tablist" aria-label="Filter signals by category">
+    <div class="filter-pills" role="tablist" aria-label="Filter signals">
+      <button class="filter-pill" data-category="top" role="tab" aria-selected="false">Top</button>
       <button class="filter-pill active" data-category="all" role="tab" aria-selected="true">All</button>
       <button class="filter-pill" data-category="automotive" role="tab" aria-selected="false">Automotive</button>
       <button class="filter-pill" data-category="consumer" role="tab" aria-selected="false">Consumer</button>
@@ -35,7 +36,7 @@
 
     <h2 class="section-heading">News</h2>
     <ul class="signal-index">
-      <li data-category="automotive">
+      <li data-category="automotive" data-top="true">
         <a class="signal-row" href="signals/ford-affordability-bet.html">
           <div>
             <p class="signal-row-title">Ford's affordability bet has to survive contact with reality</p>
@@ -44,7 +45,7 @@
           <div class="signal-row-status"><span class="pill">Ongoing</span></div>
         </a>
       </li>
-      <li data-category="consumer">
+      <li data-category="consumer" data-top="true">
         <a class="signal-row" href="signals/gen-z-drinking.html">
           <div>
             <p class="signal-row-title">Gen Z isn't drinking less — they're drinking differently</p>
@@ -53,13 +54,13 @@
           <div class="signal-row-status"><span class="pill">Ongoing</span></div>
         </a>
       </li>
-      <li data-category="culture-policy">
+      <li data-category="culture-policy" data-top="true">
         <a class="signal-row" href="signals/reflecting-pool.html">
           <div>
             <p class="signal-row-title">The Lincoln Memorial Reflecting Pool case</p>
             <p class="signal-row-meta">Culture &amp; Policy · Resolved Jul 31 · A case study in why this matters</p>
           </div>
-          <div class="signal-row-status"><span class="status-resolved">Outcome — did not hold</span></div>
+          <div class="signal-row-status"><span class="status-pill missed">Resolved</span></div>
         </a>
       </li>
     </ul>

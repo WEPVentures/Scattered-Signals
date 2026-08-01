@@ -15,7 +15,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
       var visibleCount = 0;
       rows.forEach(function (row) {
-        var show = category === "all" || row.getAttribute("data-category") === category;
+        var show;
+        if (category === "all") {
+          show = true;
+        } else if (category === "top") {
+          show = row.getAttribute("data-top") === "true";
+        } else {
+          show = row.getAttribute("data-category") === category;
+        }
         row.hidden = !show;
         if (show) visibleCount++;
       });
