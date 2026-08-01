@@ -1,0 +1,394 @@
+import { useEffect, useState, type CSSProperties } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { formatClaimStatus, computeClusterCount } from "@scattered-signals/core";
+import type { Signal } from "@scattered-signals/core";
+import {
+  listCategories,
+  getSignal,
+  listEvidence,
+  listConfidenceSnapshots,
+  upsertSignal,
+  replaceEvidence,
+  addConfidenceSnapshot,
+  upsertCurrentSignalUpdate,
+  toCoreSignal,
+  toCoreEvidence,
+  type CategoryRow,
+  type SignalRow,
+} from "../lib/db";
+import { EvidenceEditor, type DraftEvidenceRow } from "../components/EvidenceEditor";
+import { supabase } from "../lib/supabaseClient";
+
+const emptySignal: Partial<SignalRow> = {
+  slug: "",
+  title: "",
+  type: "trend",
+  is_top: false,
+  homepage_meta: "",
+  meta_description: "",
+  confidence: "low",
+  velocity: "steady",
+  velocity_is_manual_override: false,
+  claim_text: null,
+  claim_resolves_around: null,
+  claim_status: null,
+  claim_outcome: null,
+  claim_resolution_note: null,
+  status: "draft",
+};
+
+export function SignalEditor() {
+  const { id } = useParams();
+  const isNew = !id || id === "new";
+  const navigate = useNavigate();
+
+  const [categories, setCategories] = useState<CategoryRow[]>([]);
+  const [signal, setSignal] = useState<Partial<SignalRow>>(emptySignal);
+  const [bodyCopy, setBodyCopy] = useState("");
+  const [watchingText, setWatchingText] = useState("");
+  const [evidenceRows, setEvidenceRows] = useState<DraftEvidenceRow[]>([]);
+  const [previousConfidence, setPreviousConfidence] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    listCategories().then(setCategories).catch((e) => setError(e.message));
+  }, []);
+
+  useEffect(() => {
+    if (isNew) return;
+    getSignal(id!).then((row) => {
+      setSignal(row);
+      setPreviousConfidence(row.confidence);
+    });
+    listEvidence(id!).then((rows) =>
+      setEvidenceRows(
+        rows.map((r) => ({
+          tier: r.tier,
+          direction: r.direction,
+          cluster_no: r.cluster_no,
+          source_name: r.source_name,
+          source_url: r.source_url,
+          description: r.description,
+          sort_order: r.sort_order,
+        })),
+      ),
+    );
+    listConfidenceSnapshots(id!).then((snaps) => {
+      if (snaps.length > 0) setPreviousConfidence(snaps[snaps.length - 1].confidence);
+    });
+  }, [id, isNew]);
+
+  // Live preview of what the public page will render — uses the exact same
+  // formatClaimStatus() the static generator uses, so a broken/unattributed
+  // resolution note surfaces here as an error, not after publishing.
+  let claimPreviewError: string | null = null;
+  let claimPreview: ReturnType<typeof formatClaimStatus> = null;
+  if (signal.type === "claim" && signal.claim_status) {
+    try {
+      claimPreview = formatClaimStatus(toCoreSignal(signal as SignalRow, ""));
+    } catch (e) {
+      claimPreviewError = e instanceof Error ? e.message : String(e);
+    }
+  }
+  const clusterCount = computeClusterCount(
+    evidenceRows.map((r, i) => toCoreEvidence({ ...r, id: String(i), signal_id: "", created_at: "" })),
+  );
+
+  async function handleSave(publish: boolean) {
+    setSaving(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const savedSignal = await upsertSignal({ ...signal, id: isNew ? undefined : id });
+
+      await replaceEvidence(
+        savedSignal.id,
+        evidenceRows.map((r) => ({ ...r, signal_id: savedSignal.id })),
+      );
+
+      await upsertCurrentSignalUpdate({
+        signal_id: savedSignal.id,
+        eyebrow_label: `${categories.find((c) => c.id === savedSignal.category_id)?.label ?? ""} · Updated ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
+        published_at: new Date().toISOString(),
+        body_copy: bodyCopy,
+        watching_text: watchingText || null,
+        confidence_at_time: savedSignal.confidence,
+        velocity_at_time: savedSignal.velocity,
+        claim_status_at_time: savedSignal.claim_status,
+        claim_outcome_at_time: savedSignal.claim_outcome,
+        claim_resolution_note_at_time: savedSignal.claim_resolution_note,
+      });
+
+      if (savedSignal.confidence !== previousConfidence) {
+        await addConfidenceSnapshot({
+          signal_id: savedSignal.id,
+          confidence: savedSignal.confidence,
+          note: null,
+        });
+        setPreviousConfidence(savedSignal.confidence);
+      }
+
+      if (publish) {
+        const published = await upsertSignal({
+          id: savedSignal.id,
+          status: "published",
+          published_at: new Date().toISOString(),
+        });
+        const { data: sessionData } = await supabase.auth.getSession();
+        const res = await fetch("/.netlify/functions/publish-signal", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sessionData.session?.access_token ?? ""}`,
+          },
+          body: JSON.stringify({ signalId: published.id }),
+        });
+        if (!res.ok) throw new Error(`Publish trigger failed: ${await res.text()}`);
+        setNotice("Published — the public site will rebuild in about a minute.");
+      } else {
+        setNotice("Saved as draft.");
+      }
+
+      if (isNew) navigate(`/signals/${savedSignal.id}`, { replace: true });
+      else setSignal(savedSignal);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: 800, margin: "40px auto", fontFamily: "sans-serif", fontSize: 14 }}>
+      <h1 style={{ fontSize: 20 }}>{isNew ? "New signal" : signal.title}</h1>
+
+      <label style={fieldStyle}>
+        Title
+        <input
+          value={signal.title ?? ""}
+          onChange={(e) => setSignal({ ...signal, title: e.target.value })}
+          style={inputStyle}
+        />
+      </label>
+
+      <label style={fieldStyle}>
+        Slug
+        <input
+          value={signal.slug ?? ""}
+          onChange={(e) => setSignal({ ...signal, slug: e.target.value })}
+          placeholder="ford-affordability-bet"
+          style={inputStyle}
+        />
+      </label>
+
+      <label style={fieldStyle}>
+        Category
+        <select
+          value={signal.category_id ?? ""}
+          onChange={(e) => setSignal({ ...signal, category_id: e.target.value })}
+          style={inputStyle}
+        >
+          <option value="">—</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label style={fieldStyle}>
+        Type
+        <select
+          value={signal.type}
+          onChange={(e) =>
+            setSignal({ ...signal, type: e.target.value as Signal["type"] })
+          }
+          style={inputStyle}
+        >
+          <option value="trend">Long-running trend</option>
+          <option value="claim">Bounded claim</option>
+        </select>
+      </label>
+
+      <label style={fieldStyle}>
+        <input
+          type="checkbox"
+          checked={signal.is_top ?? false}
+          onChange={(e) => setSignal({ ...signal, is_top: e.target.checked })}
+        />{" "}
+        Show in "Top" tab
+      </label>
+
+      <label style={fieldStyle}>
+        Homepage meta line (shown after the category, e.g. "Moderate
+        confidence · Rising · 3 clusters · Claim pending Q1 2027")
+        <input
+          value={signal.homepage_meta ?? ""}
+          onChange={(e) => setSignal({ ...signal, homepage_meta: e.target.value })}
+          style={inputStyle}
+        />
+      </label>
+
+      <label style={fieldStyle}>
+        Meta description (SEO, shown in search results)
+        <input
+          value={signal.meta_description ?? ""}
+          onChange={(e) => setSignal({ ...signal, meta_description: e.target.value })}
+          style={inputStyle}
+        />
+      </label>
+
+      <label style={fieldStyle}>
+        Body copy
+        <textarea
+          value={bodyCopy}
+          onChange={(e) => setBodyCopy(e.target.value)}
+          rows={6}
+          style={inputStyle}
+        />
+      </label>
+
+      <label style={fieldStyle}>
+        What we're watching
+        <textarea
+          value={watchingText}
+          onChange={(e) => setWatchingText(e.target.value)}
+          rows={2}
+          style={inputStyle}
+        />
+      </label>
+
+      <label style={fieldStyle}>
+        Confidence
+        <select
+          value={signal.confidence}
+          onChange={(e) => setSignal({ ...signal, confidence: e.target.value as Signal["confidence"] })}
+          style={inputStyle}
+        >
+          <option value="low">Low</option>
+          <option value="moderate">Moderate</option>
+          <option value="high">High</option>
+          <option value="collapsed">Collapsed</option>
+        </select>
+      </label>
+
+      <label style={fieldStyle}>
+        Velocity
+        <select
+          value={signal.velocity}
+          onChange={(e) => setSignal({ ...signal, velocity: e.target.value as Signal["velocity"] })}
+          style={inputStyle}
+        >
+          <option value="rising">Rising</option>
+          <option value="falling">Falling</option>
+          <option value="steady">Steady</option>
+        </select>
+      </label>
+
+      {signal.type === "claim" && (
+        <fieldset style={{ marginTop: 16, border: "1px solid #d2d2d7", padding: 12 }}>
+          <legend>Claim</legend>
+          <label style={fieldStyle}>
+            Claim text
+            <textarea
+              value={signal.claim_text ?? ""}
+              onChange={(e) => setSignal({ ...signal, claim_text: e.target.value })}
+              rows={2}
+              style={inputStyle}
+            />
+          </label>
+          <label style={fieldStyle}>
+            Resolves around
+            <input
+              value={signal.claim_resolves_around ?? ""}
+              onChange={(e) => setSignal({ ...signal, claim_resolves_around: e.target.value })}
+              placeholder="~Q1 2027"
+              style={inputStyle}
+            />
+          </label>
+          <label style={fieldStyle}>
+            Status
+            <select
+              value={signal.claim_status ?? ""}
+              onChange={(e) =>
+                setSignal({ ...signal, claim_status: (e.target.value || null) as Signal["claimStatus"] })
+              }
+              style={inputStyle}
+            >
+              <option value="">—</option>
+              <option value="pending">Pending</option>
+              <option value="resolved">Resolved</option>
+            </select>
+          </label>
+          {signal.claim_status === "resolved" && (
+            <>
+              <label style={fieldStyle}>
+                Outcome
+                <select
+                  value={signal.claim_outcome ?? ""}
+                  onChange={(e) =>
+                    setSignal({
+                      ...signal,
+                      claim_outcome: (e.target.value || null) as Signal["claimOutcome"],
+                    })
+                  }
+                  style={inputStyle}
+                >
+                  <option value="">—</option>
+                  <option value="hit">Hit</option>
+                  <option value="missed">Missed</option>
+                  <option value="partial">Partial</option>
+                </select>
+              </label>
+              <label style={fieldStyle}>
+                Resolution note — must attribute the outcome to what actually happened
+                (e.g. "Dismissed by federal prosecutors, July 31, 2026"). Never just
+                "Resolved."
+                <textarea
+                  value={signal.claim_resolution_note ?? ""}
+                  onChange={(e) => setSignal({ ...signal, claim_resolution_note: e.target.value })}
+                  rows={2}
+                  style={inputStyle}
+                />
+              </label>
+            </>
+          )}
+          {claimPreviewError && (
+            <p style={{ color: "#a6291e" }}>Preview error: {claimPreviewError}</p>
+          )}
+          {claimPreview && (
+            <div style={{ border: "1px solid #d2d2d7", borderRadius: 8, padding: 12, marginTop: 8 }}>
+              <strong>{claimPreview.label}</strong>
+              <p>{claimPreview.claimText}</p>
+              <p style={{ color: claimPreview.isMissed ? "#a6291e" : "#6e6e73" }}>
+                {claimPreview.statusText}
+              </p>
+            </div>
+          )}
+        </fieldset>
+      )}
+
+      <h2 style={{ fontSize: 16, marginTop: 24 }}>Evidence</h2>
+      <EvidenceEditor rows={evidenceRows} onChange={setEvidenceRows} />
+      <p style={{ fontSize: 13, color: "#6e6e73" }}>Cluster count preview: {clusterCount}</p>
+
+      {error && <p style={{ color: "#a6291e" }}>{error}</p>}
+      {notice && <p style={{ color: "#2f7a4d" }}>{notice}</p>}
+
+      <div style={{ marginTop: 24, display: "flex", gap: 12 }}>
+        <button type="button" disabled={saving} onClick={() => handleSave(false)}>
+          Save draft
+        </button>
+        <button type="button" disabled={saving} onClick={() => handleSave(true)}>
+          Publish
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const fieldStyle: CSSProperties = { display: "block", marginBottom: 12 };
+const inputStyle: CSSProperties = { display: "block", width: "100%", padding: 6, marginTop: 4 };

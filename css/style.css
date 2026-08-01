@@ -12,6 +12,7 @@
   --pill-bg: #f5f5f7;
   --muted-red: #a6291e;
   --muted-green: #2f7a4d;
+  --muted-amber: #9c6b1f;
   --content-width: 692px;
   --header-width: 980px;
 }
@@ -253,6 +254,11 @@ a.signal-row:hover {
 .status-pill.hit {
   background: #e7f2ea;
   color: var(--muted-green);
+}
+
+.status-pill.partial {
+  background: #f8f0e2;
+  color: var(--muted-amber);
 }
 
 /* ---------- Signal detail page ---------- */

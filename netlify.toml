@@ -1,2 +1,8 @@
 [build]
+  command = "node --experimental-strip-types scripts/generate-site.mjs"
   publish = "."
+
+# Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY set as env vars in
+# Netlify's site settings (Site configuration > Environment variables) —
+# not committed here. The service role key bypasses RLS, so keep it out of
+# the dashboard site's (client-exposed) build — it belongs only here.
