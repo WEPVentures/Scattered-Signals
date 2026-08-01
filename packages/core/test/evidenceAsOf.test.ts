@@ -15,6 +15,7 @@ function evidenceItem(createdAt: string, sortOrder: number): Evidence {
     description: "Test evidence",
     sortOrder,
     createdAt,
+    sourcePublishedAt: null,
   };
 }
 

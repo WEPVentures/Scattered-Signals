@@ -16,6 +16,7 @@ function emptyRow(sortOrder: number): DraftEvidenceRow {
     source_url: "",
     description: "",
     sort_order: sortOrder,
+    source_published_at: null,
   };
 }
 
@@ -39,7 +40,9 @@ export function EvidenceEditor({ rows, onChange }: Props) {
       <p style={{ fontSize: 13, color: "#6e6e73" }}>
         {rows.length} evidence item{rows.length === 1 ? "" : "s"} · {clusterCount} cluster
         {clusterCount === 1 ? "" : "s"} (computed from distinct cluster numbers — this is what
-        the public page will show)
+        the public page will show). Source date is when the underlying source was published, not
+        when you added the row — leave it blank if unknown; pick an approximate day if you only
+        know the month.
       </p>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
         <thead>
@@ -49,6 +52,7 @@ export function EvidenceEditor({ rows, onChange }: Props) {
             <th>Cluster #</th>
             <th>Source</th>
             <th>URL</th>
+            <th>Source date</th>
             <th>Description</th>
             <th></th>
           </tr>
@@ -98,6 +102,13 @@ export function EvidenceEditor({ rows, onChange }: Props) {
                   value={row.source_url ?? ""}
                   onChange={(e) => updateRow(i, { source_url: e.target.value })}
                   placeholder="https://…"
+                />
+              </td>
+              <td>
+                <input
+                  type="date"
+                  value={row.source_published_at ?? ""}
+                  onChange={(e) => updateRow(i, { source_published_at: e.target.value || null })}
                 />
               </td>
               <td>

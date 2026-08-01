@@ -15,6 +15,7 @@ function evidenceItem(clusterNo: number, overrides: Partial<Evidence> = {}): Evi
     description: "Test evidence",
     sortOrder: 0,
     createdAt: "2026-01-01T00:00:00.000Z",
+    sourcePublishedAt: null,
     ...overrides,
   };
 }

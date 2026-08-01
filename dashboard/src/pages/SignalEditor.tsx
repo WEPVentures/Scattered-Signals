@@ -73,6 +73,7 @@ export function SignalEditor() {
           source_url: r.source_url,
           description: r.description,
           sort_order: r.sort_order,
+          source_published_at: r.source_published_at,
         })),
       ),
     );

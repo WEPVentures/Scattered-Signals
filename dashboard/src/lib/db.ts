@@ -45,6 +45,7 @@ export interface EvidenceRow {
   description: string;
   sort_order: number;
   created_at: string;
+  source_published_at: string | null;
 }
 
 export interface ConfidenceSnapshotRow {
@@ -107,6 +108,7 @@ export function toCoreEvidence(row: EvidenceRow): Evidence {
     description: row.description,
     sortOrder: row.sort_order,
     createdAt: row.created_at,
+    sourcePublishedAt: row.source_published_at,
   };
 }
 

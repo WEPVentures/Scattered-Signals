@@ -16,7 +16,8 @@ export interface Evidence {
   sourceUrl: string | null;
   description: string;
   sortOrder: number;
-  createdAt: string; // ISO timestamp
+  createdAt: string; // ISO timestamp — when added to the dashboard
+  sourcePublishedAt: string | null; // ISO date — when the underlying source itself was published
 }
 
 export interface ConfidenceSnapshot {

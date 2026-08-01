@@ -69,6 +69,7 @@ function toCoreEvidenceList(rows) {
     description: r.description,
     sortOrder: r.sort_order,
     createdAt: r.created_at,
+    sourcePublishedAt: r.source_published_at,
   }));
 }
 
