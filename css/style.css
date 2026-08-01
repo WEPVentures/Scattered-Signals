@@ -1,0 +1,399 @@
+/* Scattered Signals — shared styles
+   Pure white, single sans-serif, one blue accent, muted red for missed claims only. */
+
+:root {
+  --bg: #ffffff;
+  --text: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --text-faint: #86868b;
+  --border: #d2d2d7;
+  --border-strong: #c7c7cc;
+  --accent: #0071e3;
+  --pill-bg: #f5f5f7;
+  --muted-red: #a6291e;
+  --content-width: 692px;
+  --header-width: 980px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
+    "Helvetica Neue", Arial, sans-serif;
+  font-size: 17px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Header ---------- */
+
+.site-header {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.site-header-inner {
+  max-width: var(--header-width);
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.wordmark {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.wordmark:hover {
+  text-decoration: none;
+}
+
+.site-nav {
+  display: flex;
+  gap: 24px;
+}
+
+.site-nav a,
+.site-nav span {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.site-nav a:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.site-nav .disabled {
+  color: var(--text-faint);
+}
+
+/* ---------- Layout ---------- */
+
+main {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ---------- Homepage hero ---------- */
+
+.hero {
+  padding: 72px 0 48px 0;
+}
+
+.hero h1 {
+  font-size: clamp(32px, 5vw, 44px);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  margin: 0 0 16px 0;
+  color: var(--text);
+}
+
+.hero-sub {
+  font-size: 20px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 0;
+  max-width: 560px;
+}
+
+/* ---------- Section heading ---------- */
+
+.section-heading {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 0 0 4px 0;
+}
+
+/* ---------- Signal index (homepage list) ---------- */
+
+.signal-index {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+
+.signal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 28px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+}
+
+a.signal-row:hover .signal-row-title {
+  color: var(--accent);
+}
+
+a.signal-row:hover {
+  text-decoration: none;
+}
+
+.signal-row-title {
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0 0 6px 0;
+}
+
+.signal-row-meta {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.signal-row-status {
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+/* ---------- Status pills / labels ---------- */
+
+.pill {
+  display: inline-block;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--pill-bg);
+  border-radius: 999px;
+  padding: 4px 12px;
+  white-space: nowrap;
+}
+
+.status-resolved {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted-red);
+  white-space: nowrap;
+}
+
+/* ---------- Signal detail page ---------- */
+
+.back-link {
+  display: inline-block;
+  margin: 32px 0 0 0;
+  font-size: 14px;
+}
+
+.signal-header {
+  padding: 20px 0 24px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.eyebrow {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0 0 10px 0;
+}
+
+.signal-header h1 {
+  font-size: clamp(28px, 4vw, 36px);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--text);
+}
+
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.meta-item .label {
+  display: block;
+  font-size: 12.5px;
+  color: var(--text-faint);
+  margin-bottom: 3px;
+}
+
+.meta-item .value {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* ---------- Body copy ---------- */
+
+.body-copy {
+  padding: 32px 0 0 0;
+  font-size: 19px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.body-copy p {
+  margin: 0 0 20px 0;
+}
+
+.body-copy strong {
+  font-weight: 600;
+}
+
+/* ---------- Bordered callout card (claim tracker) ---------- */
+
+.card {
+  margin: 8px 0 40px 0;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px 28px;
+}
+
+.card-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 8px 0;
+}
+
+.card-text {
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text);
+  margin: 0 0 10px 0;
+}
+
+.card-status {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.card-status.missed {
+  color: var(--muted-red);
+}
+
+/* ---------- Evidence list ---------- */
+
+.evidence-section {
+  padding: 8px 0 32px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.evidence-list {
+  list-style: none;
+  margin: 16px 0 0 0;
+  padding: 0;
+}
+
+.evidence-item {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+
+.evidence-item:first-child {
+  border-top: none;
+}
+
+.evidence-tier {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.evidence-text {
+  font-size: 15.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.evidence-direction {
+  display: block;
+  font-size: 13px;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+
+/* ---------- Watching ---------- */
+
+.watching {
+  padding: 32px 0;
+}
+
+.watching .section-heading {
+  margin-bottom: 10px;
+}
+
+.watching p {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* ---------- Footer ---------- */
+
+.site-footer {
+  border-top: 1px solid var(--border);
+  margin-top: 32px;
+}
+
+.site-footer-inner {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 32px 24px 64px 24px;
+}
+
+.site-footer-inner p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-faint);
+  margin: 0 0 6px 0;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 600px) {
+  .hero {
+    padding: 48px 0 32px 0;
+  }
+
+  .signal-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .meta-row {
+    gap: 20px;
+  }
+
+  .body-copy {
+    font-size: 17px;
+  }
+}
