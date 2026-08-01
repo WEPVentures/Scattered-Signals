@@ -134,6 +134,17 @@ main {
   margin: 0 0 4px 0;
 }
 
+.section-heading-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 4px 0;
+}
+
+.section-heading-row .section-heading {
+  margin: 0;
+}
+
 /* ---------- Signal index (homepage list) ---------- */
 
 .signal-index {
@@ -265,6 +276,80 @@ a.signal-row:hover {
   font-weight: 600;
 }
 
+/* ---------- Segmented control (e.g. then/now toggle) ---------- */
+
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  margin: 28px 0 0 0;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--pill-bg);
+}
+
+.segmented-btn {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.segmented-btn.active {
+  background: #ffffff;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.toggle-panel {
+  display: none;
+}
+
+.toggle-panel.active {
+  display: block;
+}
+
+/* ---------- Confidence-over-time chart ---------- */
+
+.chart-section {
+  padding: 32px 0 8px 0;
+}
+
+.chart-section svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.chart-labels {
+  display: flex;
+  padding: 10px 0 24px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+
+.chart-labels div {
+  flex: 1;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.chart-labels div:last-child {
+  text-align: right;
+}
+
+.chart-labels .ev-date {
+  display: block;
+  color: var(--text-faint);
+  margin-bottom: 2px;
+}
+
 /* ---------- Bordered callout card (claim tracker) ---------- */
 
 .card {
@@ -295,6 +380,43 @@ a.signal-row:hover {
 
 .card-status.missed {
   color: var(--muted-red);
+}
+
+/* ---------- Definition list (About / methodology) ---------- */
+
+.definition-section {
+  padding: 8px 0 32px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.definition-list {
+  list-style: none;
+  margin: 16px 0 0 0;
+  padding: 0;
+}
+
+.definition-item {
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+
+.definition-item:first-child {
+  border-top: none;
+}
+
+.definition-term {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.definition-text {
+  display: block;
+  font-size: 15.5px;
+  line-height: 1.55;
+  color: var(--text-secondary);
 }
 
 /* ---------- Evidence list ---------- */
