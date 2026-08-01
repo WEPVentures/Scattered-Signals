@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listSignals, type SignalRow } from "../lib/db";
+import { errorMessage } from "../lib/errorMessage";
 
 export function SignalList() {
   const [signals, setSignals] = useState<SignalRow[] | null>(null);
@@ -9,7 +10,7 @@ export function SignalList() {
   useEffect(() => {
     listSignals()
       .then(setSignals)
-      .catch((e) => setError(e.message));
+      .catch((e) => setError(errorMessage(e)));
   }, []);
 
   return (

@@ -18,6 +18,7 @@ import {
 } from "../lib/db";
 import { EvidenceEditor, type DraftEvidenceRow } from "../components/EvidenceEditor";
 import { supabase } from "../lib/supabaseClient";
+import { errorMessage } from "../lib/errorMessage";
 
 const emptySignal: Partial<SignalRow> = {
   slug: "",
@@ -53,7 +54,7 @@ export function SignalEditor() {
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    listCategories().then(setCategories).catch((e) => setError(e.message));
+    listCategories().then(setCategories).catch((e) => setError(errorMessage(e)));
   }, []);
 
   useEffect(() => {
@@ -89,7 +90,7 @@ export function SignalEditor() {
     try {
       claimPreview = formatClaimStatus(toCoreSignal(signal as SignalRow, ""));
     } catch (e) {
-      claimPreviewError = e instanceof Error ? e.message : String(e);
+      claimPreviewError = errorMessage(e);
     }
   }
   const clusterCount = computeClusterCount(
@@ -154,7 +155,7 @@ export function SignalEditor() {
       if (isNew) navigate(`/signals/${savedSignal.id}`, { replace: true });
       else setSignal(savedSignal);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorMessage(e));
     } finally {
       setSaving(false);
     }
