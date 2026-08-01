@@ -345,7 +345,6 @@ ${rows.map(renderSignalRow).join("\n")}
 <footer class="site-footer">
   <div class="site-footer-inner">
     <p>Scattered Signals — context, not content.</p>
-    <p>Every signal here is a living page. Evidence accumulates, Premise Strength updates, nothing is finished.</p>
     <nav class="footer-nav">
       <a href="terms.html">Terms</a>
       <a href="privacy.html">Privacy</a>
