@@ -631,6 +631,20 @@ a.signal-row:hover {
   margin: 0 0 6px 0;
 }
 
+.footer-nav {
+  display: flex;
+  gap: 16px;
+}
+
+.footer-nav a {
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.footer-nav a:hover {
+  color: var(--text-secondary);
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 600px) {
