@@ -282,9 +282,17 @@ function renderSignalRow({ signal, categoryLabel, categorySlug, statusPill }) {
  * Regenerates index.html. The hero copy is a fixed template constant, not
  * data-driven (there's no site-copy table yet) — edit it here, not by hand
  * on the generated file. Only the filter pills + signal list are dynamic.
+ *
+ * Pills are only rendered for categories with at least one published signal
+ * — the categories table can carry far more rows than are in use at any
+ * given time (seeded ahead of content so the dashboard's category picker is
+ * ready when a new beat gets its first signal), and a row of pills that
+ * mostly lead to "No signals in this category yet" would just be clutter.
  */
 export function renderIndexPage({ rows, categories }) {
+  const usedSlugs = new Set(rows.map((r) => r.categorySlug));
   const categoryPills = categories
+    .filter((c) => usedSlugs.has(c.slug))
     .map((c) => `      <button class="filter-pill" data-category="${escapeHtml(c.slug)}" role="tab" aria-selected="false">${escapeHtml(c.label)}</button>`)
     .join("\n");
 
