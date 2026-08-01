@@ -17,9 +17,12 @@ export default async (req: Request) => {
     return new Response("Missing Authorization header", { status: 401 });
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const buildHookUrl = process.env.PUBLIC_SITE_BUILD_HOOK_URL;
+  // .trim() guards against a stray trailing newline/space from pasting
+  // values into Netlify's env var UI — easy to introduce on mobile, and it
+  // silently turns a correct key/URL into an invalid one.
+  const supabaseUrl = process.env.SUPABASE_URL?.trim();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const buildHookUrl = process.env.PUBLIC_SITE_BUILD_HOOK_URL?.trim();
 
   if (!supabaseUrl || !serviceRoleKey || !buildHookUrl) {
     return new Response("Server misconfigured: missing Supabase or build hook env vars", {
@@ -31,7 +34,9 @@ export default async (req: Request) => {
 
   const { data: userData, error: userError } = await admin.auth.getUser(token);
   if (userError || !userData.user) {
-    return new Response("Invalid session", { status: 401 });
+    return new Response(`Invalid session: ${userError?.message ?? "no user returned"}`, {
+      status: 401,
+    });
   }
 
   let signalId: string;

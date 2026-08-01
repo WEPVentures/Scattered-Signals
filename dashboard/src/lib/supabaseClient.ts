@@ -1,7 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 
-const url = import.meta.env.VITE_SUPABASE_URL;
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// .trim() guards against a stray trailing newline/space from pasting
+// values into Netlify's env var UI.
+const url = import.meta.env.VITE_SUPABASE_URL?.trim();
+const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 
 if (!url || !anonKey) {
   throw new Error(

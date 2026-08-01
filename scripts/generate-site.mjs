@@ -14,8 +14,10 @@ import { renderSignalPage, renderIndexPage } from "./render.mjs";
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// .trim() guards against a stray trailing newline/space from pasting
+// values into Netlify's env var UI.
+const SUPABASE_URL = process.env.SUPABASE_URL?.trim();
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
   console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars. Aborting build.");
