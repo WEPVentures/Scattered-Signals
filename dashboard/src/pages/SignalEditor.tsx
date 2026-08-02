@@ -104,6 +104,11 @@ export function SignalEditor() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // The AI pipeline drafts a Substack-formatted version of every topic
+  // alongside the site copy (draft_signals.proposed_substack_article) —
+  // this just surfaces it for copy-paste; nothing here is saved anywhere.
+  const [substackDraft, setSubstackDraft] = useState<string | null>(null);
+  const [substackCopied, setSubstackCopied] = useState(false);
 
   useEffect(() => {
     listCategories().then(setCategories).catch((e) => setError(errorMessage(e)));
@@ -138,6 +143,7 @@ export function SignalEditor() {
         setBodyCopy(draft.proposed_body_copy);
         setWatchingText(draft.proposed_watching_text ?? "");
         setEvidenceRows(draftEvidence.map(toEditorEvidenceRow));
+        setSubstackDraft(draft.proposed_substack_article);
         return;
       }
 
@@ -170,6 +176,7 @@ export function SignalEditor() {
         }));
         setBodyCopy(draft.proposed_body_copy);
         setEvidenceRows((prev) => [...prev, ...draftEvidence.map(toEditorEvidenceRow)]);
+        setSubstackDraft(draft.proposed_substack_article);
       }
     }
 
@@ -315,6 +322,17 @@ export function SignalEditor() {
     } catch (e) {
       setError(errorMessage(e));
       setRefreshing(false);
+    }
+  }
+
+  async function handleCopySubstack() {
+    if (!substackDraft) return;
+    try {
+      await navigator.clipboard.writeText(substackDraft);
+      setSubstackCopied(true);
+      setTimeout(() => setSubstackCopied(false), 2000);
+    } catch (e) {
+      setError(errorMessage(e));
     }
   }
 
@@ -602,6 +620,11 @@ export function SignalEditor() {
           {!isNew && (
             <button type="button" disabled={refreshing} onClick={handleRefresh}>
               {refreshing ? "Starting refresh…" : "Refresh from web"}
+            </button>
+          )}
+          {substackDraft && (
+            <button type="button" onClick={handleCopySubstack}>
+              {substackCopied ? "Copied!" : "Copy Substack draft"}
             </button>
           )}
         </div>
