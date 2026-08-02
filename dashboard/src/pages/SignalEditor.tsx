@@ -456,7 +456,7 @@ export function SignalEditor() {
       )}
 
       <label style={fieldStyle}>
-        Velocity
+        Narrative Direction
         <select
           value={signal.velocity}
           onChange={(e) => setSignal({ ...signal, velocity: e.target.value as Signal["velocity"] })}
