@@ -639,6 +639,17 @@ a.signal-row:hover {
   margin-left: 8px;
 }
 
+/* The cited source's own favicon — a plain citation icon, not a logo
+   endorsement. Small and muted so it reads as metadata, not a badge. */
+.evidence-favicon {
+  width: 14px;
+  height: 14px;
+  margin-left: 6px;
+  border-radius: 3px;
+  vertical-align: -2px;
+  opacity: 0.85;
+}
+
 /* ---------- Evidence "show more" accordion (native <details>) ---------- */
 
 .evidence-more {

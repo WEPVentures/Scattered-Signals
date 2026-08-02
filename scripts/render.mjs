@@ -34,17 +34,40 @@ function formatEvidenceDate(isoDate) {
   return new Date(isoDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+/**
+ * The real favicon for this item's actual source domain — via DuckDuckGo's
+ * public icon proxy (no API key, no tracking params), not a fixed row of
+ * prestige-outlet logos. Showing a specific outlet's own icon next to a
+ * link to that outlet is a plain citation; a static "as seen in" bar of
+ * trademarked logos would misleadingly imply those particular outlets
+ * were used on every page and that Nutgraph has some relationship with
+ * them, regardless of what was actually cited.
+ */
+function faviconUrl(sourceUrl) {
+  if (!sourceUrl) return null;
+  try {
+    const hostname = new URL(sourceUrl).hostname;
+    return `https://icons.duckduckgo.com/ip3/${hostname}.ico`;
+  } catch {
+    return null; // malformed source_url — omit the icon rather than break the page
+  }
+}
+
 /** number = this item's position in the evidence list, 1-based — matches the numbered dot on the chart above. */
 function renderEvidenceItem(item, number) {
   const dateLabel = formatEvidenceDate(item.source_published_at ?? item.created_at);
   const sourceNameHtml = item.source_url
     ? `<a href="${escapeHtml(item.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.source_name)}</a>`
     : escapeHtml(item.source_name);
+  const favicon = faviconUrl(item.source_url);
+  const faviconHtml = favicon
+    ? `<img class="evidence-favicon" src="${escapeHtml(favicon)}" alt="" width="16" height="16" loading="lazy" onerror="this.remove()">`
+    : "";
   return `      <li class="evidence-item">
         <span class="evidence-number">${number}</span>
         <span class="evidence-tier pill">${TIER_LABEL[item.tier]}</span>
         <span class="evidence-text">
-          ${sourceNameHtml}<span class="evidence-date">${escapeHtml(dateLabel)}</span>
+          ${sourceNameHtml}<span class="evidence-date">${escapeHtml(dateLabel)}</span>${faviconHtml}
           <span class="evidence-direction">${escapeHtml(item.description)}</span>
         </span>
       </li>`;
