@@ -13,6 +13,7 @@ import {
   formatClaimStatus,
   computeClusterCount,
   currentPremiseStrength,
+  currentStatusWord,
   evidenceToChartPoints,
   evidenceToPlotMovementPoints,
 } from "../packages/core/src/index.ts";
@@ -167,6 +168,8 @@ async function main() {
       claimCopy,
       premiseStrength,
       chartPoints,
+      statusWord: currentStatusWord(coreSignal),
+      updatedAt: update.published_at,
     });
 
     await mkdir(path.join(ROOT, "topics"), { recursive: true });

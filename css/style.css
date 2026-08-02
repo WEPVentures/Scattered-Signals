@@ -341,6 +341,17 @@ a.signal-row:hover {
   color: var(--text);
 }
 
+/* One-sentence synopsis, sourced from the same homepage_meta teaser shown
+   on the index page — sits between the stat row and the full body copy so
+   a 15-second reader gets the gist before committing to the narrative. */
+.synopsis {
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 20px 0 0 0;
+}
+
 /* ---------- Body copy ---------- */
 
 .body-copy {

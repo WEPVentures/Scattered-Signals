@@ -61,6 +61,24 @@ export function formatClaimStatus(signal: Signal): ClaimCardCopy | null {
   };
 }
 
+const OUTCOME_WORD: Record<NonNullable<Signal["claimOutcome"]>, string> = {
+  hit: "Confirmed",
+  missed: "Disproven",
+  partial: "Partial",
+};
+
+/**
+ * One-word status for the article page's Executive Summary stat card.
+ * "Ongoing" covers everything not yet resolved, including every Living
+ * Topic — those never resolve by design, so there's no outcome to report.
+ */
+export function currentStatusWord(signal: Signal): string {
+  if (signal.type === "claim" && signal.claimStatus === "resolved" && signal.claimOutcome) {
+    return OUTCOME_WORD[signal.claimOutcome];
+  }
+  return "Ongoing";
+}
+
 /** Pill shown on the homepage list row. */
 export function formatStatusPill(signal: Signal): StatusPillCopy {
   if (signal.type !== "claim" || signal.claimStatus !== "resolved") {

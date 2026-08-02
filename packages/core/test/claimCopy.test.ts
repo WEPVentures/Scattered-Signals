@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatClaimStatus, formatStatusPill } from "../src/claimCopy.ts";
+import { formatClaimStatus, formatStatusPill, currentStatusWord } from "../src/claimCopy.ts";
 import type { Signal } from "../src/types.ts";
 
 function baseSignal(overrides: Partial<Signal> = {}): Signal {
@@ -69,4 +69,24 @@ test("formatStatusPill maps ongoing signals to 'Ongoing'", () => {
   const pill = formatStatusPill(baseSignal({ claimStatus: "pending", claimOutcome: null }));
   assert.equal(pill.label, "Ongoing");
   assert.equal(pill.variant, "ongoing");
+});
+
+test("currentStatusWord maps resolved claim outcomes to their one-word verdict", () => {
+  assert.equal(currentStatusWord(baseSignal({ claimOutcome: "hit" })), "Confirmed");
+  assert.equal(currentStatusWord(baseSignal({ claimOutcome: "missed" })), "Disproven");
+  assert.equal(currentStatusWord(baseSignal({ claimOutcome: "partial" })), "Partial");
+});
+
+test("currentStatusWord returns 'Ongoing' for a pending claim", () => {
+  assert.equal(
+    currentStatusWord(baseSignal({ claimStatus: "pending", claimOutcome: null })),
+    "Ongoing",
+  );
+});
+
+test("currentStatusWord returns 'Ongoing' for every Living Topic, which never resolves", () => {
+  assert.equal(
+    currentStatusWord(baseSignal({ type: "trend", claimStatus: null, claimOutcome: null })),
+    "Ongoing",
+  );
 });

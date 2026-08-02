@@ -392,8 +392,9 @@ export function SignalEditor() {
       </label>
 
       <label style={fieldStyle}>
-        Homepage meta line (shown after the category, e.g. "Moderate
-        evidence strength · Rising · 3 clusters · Claim ongoing, resolves Q1 2027")
+        Homepage meta line — also shown as the one-sentence synopsis at the top of the
+        article page, right below the stat card. Keep it to one punchy sentence, e.g.
+        "230+ companies signed. Anthropic didn't. What the dated record actually shows."
         <input
           value={signal.homepage_meta ?? ""}
           onChange={(e) => setSignal({ ...signal, homepage_meta: e.target.value })}

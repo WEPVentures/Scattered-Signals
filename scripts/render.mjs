@@ -291,12 +291,13 @@ const VELOCITY_LABEL = { rising: "Rising", falling: "Falling", steady: "Steady" 
  * segmented then/now control (Reflecting Pool) is Phase 3 dashboard scope —
  * this function intentionally doesn't try to guess that shape yet.
  */
-export function renderSignalPage({ signal, categoryLabel, eyebrowLabel, bodyCopy, watchingText, evidence, clusterCount, claimCopy, premiseStrength, chartPoints }) {
+export function renderSignalPage({ signal, categoryLabel, eyebrowLabel, bodyCopy, watchingText, evidence, clusterCount, claimCopy, premiseStrength, chartPoints, statusWord, updatedAt }) {
   const chartSectionHtml =
     signal.type === "trend"
       ? renderPoleSpectrumSection(chartPoints, evidence, signal)
       : renderChartSection(chartPoints, evidence);
   const statusCardHtml = signal.type === "trend" ? renderPlotStatusCard(signal) : renderClaimCard(claimCopy);
+  const lastUpdatedLabel = formatEvidenceDate(updatedAt);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -328,18 +329,28 @@ ${GENERATED_NOTICE}
 
   <div class="meta-row">
     <div class="meta-item">
+      <span class="label">Current Status</span>
+      <span class="value">${escapeHtml(statusWord)}</span>
+    </div>
+    <div class="meta-item">
       <span class="label">Evidence Strength</span>
       <span class="value">${CONFIDENCE_LABEL[premiseStrength]}</span>
     </div>
     <div class="meta-item">
-      <span class="label">Velocity</span>
+      <span class="label">Narrative Direction</span>
       <span class="value">${VELOCITY_LABEL[signal.velocity]}</span>
     </div>
     <div class="meta-item">
       <span class="label">Clusters</span>
       <span class="value">${clusterCount}</span>
     </div>
+    <div class="meta-item">
+      <span class="label">Last Updated</span>
+      <span class="value">${escapeHtml(lastUpdatedLabel)}</span>
+    </div>
   </div>
+
+  ${signal.homepage_meta ? `<p class="synopsis">${escapeHtml(signal.homepage_meta)}</p>` : ""}
 
   <div class="body-copy">
 ${renderBodyCopy(bodyCopy)}
