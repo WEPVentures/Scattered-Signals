@@ -638,13 +638,18 @@ a.signal-row:hover {
   max-width: var(--content-width);
   margin: 0 auto;
   padding: 32px 24px 64px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .site-footer-inner p {
   font-size: 13px;
   line-height: 1.6;
   color: var(--text-faint);
-  margin: 0 0 6px 0;
+  margin: 0;
 }
 
 .footer-nav {

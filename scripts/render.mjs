@@ -200,7 +200,6 @@ ${GENERATED_NOTICE}
   <div class="site-header-inner">
     <a class="wordmark" href="../index.html">Plotlines</a>
     <nav class="site-nav">
-      <a href="../index.html">Topics</a>
       <a href="../about.html">About</a>
     </nav>
   </div>
@@ -315,7 +314,6 @@ ${GENERATED_NOTICE}
   <div class="site-header-inner">
     <a class="wordmark" href="index.html">Plotlines</a>
     <nav class="site-nav">
-      <a href="index.html">Topics</a>
       <a href="about.html">About</a>
     </nav>
   </div>
