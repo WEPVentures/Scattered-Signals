@@ -268,7 +268,7 @@ ${renderEvidenceSection(evidence)}
 
 <footer class="site-footer">
   <div class="site-footer-inner">
-    <p>Plotlines — context, not content.</p>
+    <p>© 2026 WEP Ventures LLC. All rights reserved.</p>
     <nav class="footer-nav">
       <a href="../terms.html">Terms</a>
       <a href="../privacy.html">Privacy</a>
@@ -342,13 +342,13 @@ ${GENERATED_NOTICE}
 
 <main>
   <section class="hero">
-    <h1>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</h1>
-    <p class="hero-sub">Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua ut enim ad minim veniam.</p>
+    <h1>Follow the plot.</h1>
+    <p class="hero-sub">Not the news cycle.</p>
   </section>
 
   <section>
     <div class="filter-pills" role="tablist" aria-label="Filter topics">
-      <button class="filter-pill" data-category="top" role="tab" aria-selected="false">Top</button>
+      <button class="filter-pill" data-category="top" role="tab" aria-selected="false">Trending</button>
       <button class="filter-pill active" data-category="all" role="tab" aria-selected="true">All</button>
 ${categoryPills}
     </div>
@@ -363,7 +363,7 @@ ${rows.map(renderSignalRow).join("\n")}
 
 <footer class="site-footer">
   <div class="site-footer-inner">
-    <p>Plotlines — context, not content.</p>
+    <p>© 2026 WEP Ventures LLC. All rights reserved.</p>
     <nav class="footer-nav">
       <a href="terms.html">Terms</a>
       <a href="privacy.html">Privacy</a>

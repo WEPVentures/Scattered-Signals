@@ -366,7 +366,7 @@ export function SignalEditor() {
           checked={signal.is_top ?? false}
           onChange={(e) => setSignal({ ...signal, is_top: e.target.checked })}
         />{" "}
-        Show in "Top" tab
+        Show in "Trending" tab
       </label>
 
       <label style={fieldStyle}>
