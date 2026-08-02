@@ -155,6 +155,17 @@ export async function listEvidence(signalId: string) {
   return data as EvidenceRow[];
 }
 
+export async function getCurrentSignalUpdate(signalId: string) {
+  const { data, error } = await supabase
+    .from("signal_updates")
+    .select("*")
+    .eq("signal_id", signalId)
+    .eq("is_current", true)
+    .maybeSingle();
+  if (error) throw error;
+  return data as SignalUpdateRow | null;
+}
+
 export async function listConfidenceSnapshots(signalId: string) {
   const { data, error } = await supabase
     .from("confidence_snapshots")

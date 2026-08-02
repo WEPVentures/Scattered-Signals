@@ -6,6 +6,7 @@ import {
   listCategories,
   getSignal,
   listEvidence,
+  getCurrentSignalUpdate,
   listConfidenceSnapshots,
   upsertSignal,
   replaceEvidence,
@@ -86,6 +87,10 @@ export function SignalEditor() {
         })),
       ),
     );
+    getCurrentSignalUpdate(id!).then((update) => {
+      setBodyCopy(update?.body_copy ?? "");
+      setWatchingText(update?.watching_text ?? "");
+    });
     listConfidenceSnapshots(id!).then((snaps) => {
       if (snaps.length > 0) setPreviousConfidence(snaps[snaps.length - 1].confidence);
     });
