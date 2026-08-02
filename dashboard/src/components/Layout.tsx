@@ -15,7 +15,7 @@ export function Layout({ children }: { children: ReactNode }) {
         }}
       >
         <Link to="/" style={{ fontWeight: 600, color: "#1d1d1f", textDecoration: "none" }}>
-          Plotlines — Dashboard
+          Wake — Dashboard
         </Link>
         <button
           type="button"

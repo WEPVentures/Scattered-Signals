@@ -304,7 +304,7 @@ export function renderSignalPage({ signal, categoryLabel, eyebrowLabel, bodyCopy
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${escapeHtml(signal.title)} — Plotlines</title>${signal.meta_description ? `\n<meta name="description" content="${escapeHtml(signal.meta_description)}">` : ""}
+<title>${escapeHtml(signal.title)} — Wake</title>${signal.meta_description ? `\n<meta name="description" content="${escapeHtml(signal.meta_description)}">` : ""}
 <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
@@ -312,7 +312,7 @@ ${GENERATED_NOTICE}
 
 <header class="site-header">
   <div class="site-header-inner">
-    <a class="wordmark" href="../index.html">Plotlines</a>
+    <a class="wordmark" href="../index.html">wake.</a>
     <nav class="site-nav">
       <a href="../about.html">About</a>
     </nav>
@@ -371,7 +371,7 @@ ${renderEvidenceSection(evidence)}
 
 <footer class="site-footer">
   <div class="site-footer-inner">
-    <p>© 2026 Plotlines</p>
+    <p>© 2026 Wake.news</p>
     <nav class="footer-nav">
       <a href="../terms.html">Terms</a>
       <a href="../privacy.html">Privacy</a>
@@ -428,7 +428,7 @@ export function renderIndexPage({ rows, categories }) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Plotlines</title>
+<title>Wake — What actually happened, as it happens.</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -436,7 +436,7 @@ ${GENERATED_NOTICE}
 
 <header class="site-header">
   <div class="site-header-inner">
-    <a class="wordmark" href="index.html">Plotlines</a>
+    <a class="wordmark" href="index.html">wake.</a>
     <nav class="site-nav">
       <a href="about.html">About</a>
     </nav>
@@ -445,8 +445,8 @@ ${GENERATED_NOTICE}
 
 <main>
   <section class="hero">
-    <h1>Follow the plot.</h1>
-    <p class="hero-sub">Not the news cycle.</p>
+    <h1>What actually happened, as it happens.</h1>
+    <p class="hero-sub">Not what happens next.</p>
   </section>
 
   <section>
@@ -466,7 +466,7 @@ ${rows.map(renderSignalRow).join("\n")}
 
 <footer class="site-footer">
   <div class="site-footer-inner">
-    <p>© 2026 Plotlines</p>
+    <p>© 2026 Wake.news</p>
     <nav class="footer-nav">
       <a href="terms.html">Terms</a>
       <a href="privacy.html">Privacy</a>

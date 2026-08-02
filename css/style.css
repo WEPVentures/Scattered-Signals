@@ -1,5 +1,7 @@
-/* Plotlines — shared styles
-   Pure white, single sans-serif, one blue accent, muted red for missed claims only. */
+/* Wake — shared styles
+   Pure white, single sans-serif, one blue accent, muted red for missed claims only.
+   The wordmark is the one deliberate exception: a quiet serif, lowercase,
+   trailing period — "wake." — distinct from the sans-serif body/UI type. */
 
 :root {
   --bg: #ffffff;
@@ -77,7 +79,8 @@ a:hover {
 }
 
 .wordmark {
-  font-size: 15px;
+  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  font-size: 17px;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text);
