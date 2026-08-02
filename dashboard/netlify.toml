@@ -3,6 +3,16 @@
   publish = "dist"
   functions = "netlify/functions"
 
+# Must come before the SPA catch-all below — without an explicit rule here,
+# "/*" also matches /.netlify/functions/* and serves back index.html (200)
+# instead of ever invoking the function. Since fetch() doesn't reject on a
+# 200, that failure is invisible from the client: no error, just a request
+# that silently never ran.
+[[redirects]]
+  from = "/.netlify/functions/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

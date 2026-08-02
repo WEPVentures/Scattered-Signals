@@ -40,13 +40,8 @@ export async function startResearch(params: {
     submitted_by: sessionData.session?.user.email ?? null,
   });
 
-  await fetch("/.netlify/functions/research-topic-background", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${sessionData.session?.access_token ?? ""}`,
-    },
-    body: JSON.stringify({ topicId: topic.id }),
+  await invokeBackgroundFunction("research-topic-background", sessionData.session?.access_token, {
+    topicId: topic.id,
   });
 
   return topic;
@@ -64,14 +59,38 @@ export async function startRefresh(params: { signalId: string; signalTitle: stri
     submitted_by: sessionData.session?.user.email ?? null,
   });
 
-  await fetch("/.netlify/functions/refresh-topic-background", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${sessionData.session?.access_token ?? ""}`,
-    },
-    body: JSON.stringify({ topicId: topic.id, signalId: params.signalId }),
+  await invokeBackgroundFunction("refresh-topic-background", sessionData.session?.access_token, {
+    topicId: topic.id,
+    signalId: params.signalId,
   });
 
   return topic;
+}
+
+/**
+ * Background Functions always respond 202 with an empty body — that's how
+ * Netlify signals "accepted, running async." Anything else (a plain 200,
+ * in particular) means the request never reached the function at all: most
+ * likely Netlify's SPA catch-all redirect served back index.html instead.
+ * fetch() doesn't reject on that, so without this check the failure is
+ * invisible — the topic just sits at "queued" forever with no error.
+ */
+async function invokeBackgroundFunction(
+  functionName: string,
+  accessToken: string | undefined,
+  body: Record<string, string>,
+): Promise<void> {
+  const res = await fetch(`/.netlify/functions/${functionName}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken ?? ""}`,
+    },
+    body: JSON.stringify(body),
+  });
+  if (res.status !== 202) {
+    throw new Error(
+      `Expected a 202 Accepted from ${functionName}, got ${res.status}. This usually means the request never reached the function (e.g. an intercepting redirect) rather than the function itself failing.`,
+    );
+  }
 }
