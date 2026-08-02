@@ -34,11 +34,14 @@ function formatEvidenceDate(isoDate) {
 /** number = this item's position in the evidence list, 1-based — matches the numbered dot on the chart above. */
 function renderEvidenceItem(item, number) {
   const dateLabel = formatEvidenceDate(item.source_published_at ?? item.created_at);
+  const sourceNameHtml = item.source_url
+    ? `<a href="${escapeHtml(item.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.source_name)}</a>`
+    : escapeHtml(item.source_name);
   return `      <li class="evidence-item">
         <span class="evidence-number">${number}</span>
         <span class="evidence-tier pill">${TIER_LABEL[item.tier]}</span>
         <span class="evidence-text">
-          ${escapeHtml(item.source_name)}<span class="evidence-date">${escapeHtml(dateLabel)}</span>
+          ${sourceNameHtml}<span class="evidence-date">${escapeHtml(dateLabel)}</span>
           <span class="evidence-direction">${escapeHtml(item.description)}</span>
         </span>
       </li>`;
