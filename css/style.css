@@ -570,6 +570,13 @@ a.signal-row:hover {
   margin-top: 4px;
 }
 
+.evidence-date {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-faint);
+  margin-left: 8px;
+}
+
 /* ---------- Evidence "show more" accordion (native <details>) ---------- */
 
 .evidence-more {

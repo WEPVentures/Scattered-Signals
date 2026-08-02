@@ -26,13 +26,19 @@ export function renderBodyCopy(bodyCopy) {
 
 const TIER_LABEL = { 1: "Tier 1", "1": "Tier 1", 2: "Tier 2", "2": "Tier 2", 3: "Tier 3", "3": "Tier 3" };
 
+/** Same "Mon DD, YYYY" shape used on the chart's point labels, so a reader can match one to the other at a glance. */
+function formatEvidenceDate(isoDate) {
+  return new Date(isoDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 /** number = this item's position in the evidence list, 1-based — matches the numbered dot on the chart above. */
 function renderEvidenceItem(item, number) {
+  const dateLabel = formatEvidenceDate(item.source_published_at ?? item.created_at);
   return `      <li class="evidence-item">
         <span class="evidence-number">${number}</span>
         <span class="evidence-tier pill">${TIER_LABEL[item.tier]}</span>
         <span class="evidence-text">
-          ${escapeHtml(item.source_name)}
+          ${escapeHtml(item.source_name)}<span class="evidence-date">${escapeHtml(dateLabel)}</span>
           <span class="evidence-direction">${escapeHtml(item.description)}</span>
         </span>
       </li>`;
@@ -154,11 +160,7 @@ ${PREMISE_STRENGTH_TICKS.map(
       if (row === -1) return null; // no free row — drop the label, keep the dot
       rowRightEdge[row] = right;
 
-      const dateLabel = new Date(p.isoDate).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
+      const dateLabel = formatEvidenceDate(p.isoDate);
       const number = numberByEvidenceId.get(p.evidenceId);
       return `      <div class="chart-point-label" style="left:${((p.px / 600) * 100).toFixed(2)}%; top:${row * ROW_HEIGHT}px; text-align:${align}; transform:translateX(${translate});"><strong>${number}</strong> ${escapeHtml(dateLabel)}</div>`;
     })
