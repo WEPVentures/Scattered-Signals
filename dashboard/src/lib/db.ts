@@ -32,6 +32,7 @@ export interface SignalRow {
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  premise: string | null;
 }
 
 export interface EvidenceRow {
@@ -214,4 +215,155 @@ export async function upsertCurrentSignalUpdate(row: Partial<SignalUpdateRow> & 
     .single();
   if (error) throw error;
   return data as SignalUpdateRow;
+}
+
+// AI research pipeline — research_topics/research_runs/draft_signals/
+// draft_evidence. The Netlify Background Functions do all the writing here;
+// the dashboard only ever reads these tables (to poll status and to render
+// a draft for review) and updates draft_signals.status when a human acts on
+// a draft (approved by saving through SignalEditor, or rejected directly).
+
+export interface ResearchTopicRow {
+  id: string;
+  topic_text: string;
+  notes: string | null;
+  category_hint: string | null;
+  type_hint: "trend" | "claim" | null;
+  status: "queued" | "researching" | "draft_ready" | "failed" | "archived";
+  submitted_at: string;
+  submitted_by: string | null;
+}
+
+export interface ResearchRunRow {
+  id: string;
+  topic_id: string;
+  status: string;
+  model_used: string | null;
+  prompt_version: string | null;
+  started_at: string;
+  completed_at: string | null;
+  error_message: string | null;
+  cost_estimate_usd: number | null;
+  citations: string[] | null;
+}
+
+export interface DraftSignalRow {
+  id: string;
+  topic_id: string;
+  run_id: string;
+  proposed_title: string;
+  proposed_category_id: string | null;
+  proposed_type: "trend" | "claim";
+  proposed_body_copy: string;
+  proposed_confidence: Signal["confidence"];
+  proposed_watching_text: string | null;
+  proposed_claim_text: string | null;
+  proposed_claim_resolves_around: string | null;
+  status: "pending_review" | "edited" | "approved" | "rejected";
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  rejection_reason: string | null;
+  published_signal_id: string | null;
+  created_at: string;
+  proposed_slug: string | null;
+  proposed_meta_description: string | null;
+  proposed_homepage_meta: string | null;
+  proposed_premise: string | null;
+  proposed_substack_article: string | null;
+}
+
+export interface DraftEvidenceRow {
+  id: string;
+  draft_signal_id: string;
+  tier: Evidence["tier"];
+  direction: Evidence["direction"];
+  cluster_no: number;
+  source_name: string;
+  source_url: string | null;
+  description: string;
+  ai_tier_rationale: string | null;
+  sort_order: number;
+  source_published_at: string | null;
+}
+
+export async function createResearchTopic(row: {
+  topic_text: string;
+  notes?: string | null;
+  category_hint?: string | null;
+  type_hint?: "trend" | "claim" | null;
+  submitted_by?: string | null;
+}) {
+  const { data, error } = await supabase
+    .from("research_topics")
+    .insert({ status: "queued", ...row })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ResearchTopicRow;
+}
+
+export async function getResearchTopic(id: string) {
+  const { data, error } = await supabase.from("research_topics").select("*").eq("id", id).single();
+  if (error) throw error;
+  return data as ResearchTopicRow;
+}
+
+export async function getLatestResearchRun(topicId: string) {
+  const { data, error } = await supabase
+    .from("research_runs")
+    .select("*")
+    .eq("topic_id", topicId)
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data as ResearchRunRow | null;
+}
+
+export async function listPendingDraftSignals() {
+  const { data, error } = await supabase
+    .from("draft_signals")
+    .select("*")
+    .eq("status", "pending_review")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data as DraftSignalRow[];
+}
+
+export async function getDraftSignalByTopicId(topicId: string) {
+  const { data, error } = await supabase
+    .from("draft_signals")
+    .select("*")
+    .eq("topic_id", topicId)
+    .maybeSingle();
+  if (error) throw error;
+  return data as DraftSignalRow | null;
+}
+
+export async function getDraftSignal(id: string) {
+  const { data, error } = await supabase.from("draft_signals").select("*").eq("id", id).single();
+  if (error) throw error;
+  return data as DraftSignalRow;
+}
+
+export async function listDraftEvidence(draftSignalId: string) {
+  const { data, error } = await supabase
+    .from("draft_evidence")
+    .select("*")
+    .eq("draft_signal_id", draftSignalId)
+    .order("sort_order");
+  if (error) throw error;
+  return data as DraftEvidenceRow[];
+}
+
+export async function updateDraftSignalStatus(
+  id: string,
+  status: DraftSignalRow["status"],
+  extra?: { rejection_reason?: string; published_signal_id?: string },
+) {
+  const { error } = await supabase
+    .from("draft_signals")
+    .update({ status, reviewed_at: new Date().toISOString(), ...extra })
+    .eq("id", id);
+  if (error) throw error;
 }

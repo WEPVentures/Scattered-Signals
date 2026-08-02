@@ -1,17 +1,24 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { listSignals, type SignalRow } from "../lib/db";
+import { Link, useNavigate } from "react-router-dom";
+import { listSignals, listPendingDraftSignals, type SignalRow, type DraftSignalRow } from "../lib/db";
 import { deleteSignal } from "../lib/deleteSignal";
+import { startRefresh } from "../lib/research";
 import { errorMessage } from "../lib/errorMessage";
 
 export function SignalList() {
+  const navigate = useNavigate();
   const [signals, setSignals] = useState<SignalRow[] | null>(null);
+  const [drafts, setDrafts] = useState<DraftSignalRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
 
   useEffect(() => {
     listSignals()
       .then(setSignals)
+      .catch((e) => setError(errorMessage(e)));
+    listPendingDraftSignals()
+      .then(setDrafts)
       .catch((e) => setError(errorMessage(e)));
   }, []);
 
@@ -29,13 +36,45 @@ export function SignalList() {
     }
   }
 
+  async function handleRefresh(s: SignalRow) {
+    setRefreshingId(s.id);
+    setError(null);
+    try {
+      const topic = await startRefresh({ signalId: s.id, signalTitle: s.title });
+      navigate("/research", { state: { topicId: topic.id } });
+    } catch (e) {
+      setError(errorMessage(e));
+      setRefreshingId(null);
+    }
+  }
+
   return (
     <div style={{ maxWidth: 800, margin: "40px auto", fontFamily: "sans-serif" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h1 style={{ fontSize: 20 }}>Signals</h1>
-        <Link to="/signals/new">+ New signal</Link>
+        <div style={{ display: "flex", gap: 16 }}>
+          <Link to="/research">+ Research new topic</Link>
+          <Link to="/signals/new">+ New signal</Link>
+        </div>
       </div>
       {error && <p style={{ color: "#a6291e" }}>{error}</p>}
+
+      {drafts.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <h2 style={{ fontSize: 15, color: "#6e6e73" }}>Drafts pending review ({drafts.length})</h2>
+          <ul style={{ paddingLeft: 20 }}>
+            {drafts.map((d) => (
+              <li key={d.id}>
+                <Link to={`/drafts/${d.id}`}>
+                  {d.published_signal_id ? "Refresh: " : ""}
+                  {d.proposed_title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {!signals && !error && <p>Loading…</p>}
       {signals && signals.length === 0 && <p>No signals yet.</p>}
       <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 16, fontSize: 14 }}>
@@ -47,6 +86,16 @@ export function SignalList() {
               </td>
               <td style={{ color: "#6e6e73" }}>{s.type}</td>
               <td style={{ color: "#6e6e73" }}>{s.status}</td>
+              <td style={{ textAlign: "right" }}>
+                <button
+                  type="button"
+                  disabled={refreshingId === s.id}
+                  onClick={() => handleRefresh(s)}
+                  style={{ background: "none", border: "none", cursor: "pointer" }}
+                >
+                  {refreshingId === s.id ? "Starting…" : "Refresh"}
+                </button>
+              </td>
               <td style={{ textAlign: "right" }}>
                 <button
                   type="button"

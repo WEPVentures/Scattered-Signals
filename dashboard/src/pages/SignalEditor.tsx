@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { formatClaimStatus, computeClusterCount, currentPremiseStrength } from "@scattered-signals/core";
 import type { Signal } from "@scattered-signals/core";
 import {
@@ -14,12 +14,16 @@ import {
   upsertCurrentSignalUpdate,
   toCoreSignal,
   toCoreEvidence,
+  getDraftSignal,
+  listDraftEvidence,
+  updateDraftSignalStatus,
   type CategoryRow,
   type SignalRow,
 } from "../lib/db";
 import { EvidenceEditor, type DraftEvidenceRow } from "../components/EvidenceEditor";
 import { supabase } from "../lib/supabaseClient";
 import { deleteSignal } from "../lib/deleteSignal";
+import { startRefresh } from "../lib/research";
 import { errorMessage } from "../lib/errorMessage";
 
 const emptySignal: Partial<SignalRow> = {
@@ -38,7 +42,30 @@ const emptySignal: Partial<SignalRow> = {
   claim_outcome: null,
   claim_resolution_note: null,
   status: "draft",
+  premise: null,
 };
+
+function toEditorEvidenceRow(e: {
+  tier: DraftEvidenceRow["tier"];
+  direction: DraftEvidenceRow["direction"];
+  cluster_no: number;
+  source_name: string;
+  source_url: string | null;
+  description: string;
+  sort_order: number;
+  source_published_at: string | null;
+}): DraftEvidenceRow {
+  return {
+    tier: e.tier,
+    direction: e.direction,
+    cluster_no: e.cluster_no,
+    source_name: e.source_name,
+    source_url: e.source_url,
+    description: e.description,
+    sort_order: e.sort_order,
+    source_published_at: e.source_published_at,
+  };
+}
 
 const PREMISE_STRENGTH_LABEL: Record<Signal["confidence"], string> = {
   low: "Low",
@@ -51,6 +78,12 @@ export function SignalEditor() {
   const { id } = useParams();
   const isNew = !id || id === "new";
   const navigate = useNavigate();
+  const location = useLocation();
+  // Set when arriving here from DraftReview's "Open in editor" button — a
+  // new-topic draft prefills this otherwise-empty form; a refresh draft
+  // (opened against an existing signal) gets its new evidence appended and
+  // its suggested body copy substituted in as an editable starting point.
+  const draftId = (location.state as { draftId?: string } | null)?.draftId ?? null;
 
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [signal, setSignal] = useState<Partial<SignalRow>>(emptySignal);
@@ -60,6 +93,7 @@ export function SignalEditor() {
   const [previousConfidence, setPreviousConfidence] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -68,33 +102,65 @@ export function SignalEditor() {
   }, []);
 
   useEffect(() => {
-    if (isNew) return;
-    getSignal(id!).then((row) => {
+    let cancelled = false;
+
+    async function load() {
+      if (isNew) {
+        if (!draftId) return;
+        const [draft, draftEvidence] = await Promise.all([
+          getDraftSignal(draftId),
+          listDraftEvidence(draftId),
+        ]);
+        if (cancelled) return;
+        setSignal((prev) => ({
+          ...prev,
+          title: draft.proposed_title,
+          slug: draft.proposed_slug ?? prev.slug,
+          category_id: draft.proposed_category_id ?? prev.category_id,
+          type: draft.proposed_type,
+          homepage_meta: draft.proposed_homepage_meta ?? prev.homepage_meta,
+          meta_description: draft.proposed_meta_description ?? prev.meta_description,
+          premise: draft.proposed_premise,
+          claim_text: draft.proposed_claim_text,
+          claim_resolves_around: draft.proposed_claim_resolves_around,
+        }));
+        setBodyCopy(draft.proposed_body_copy);
+        setWatchingText(draft.proposed_watching_text ?? "");
+        setEvidenceRows(draftEvidence.map(toEditorEvidenceRow));
+        return;
+      }
+
+      const [row, evRows, update, snaps] = await Promise.all([
+        getSignal(id!),
+        listEvidence(id!),
+        getCurrentSignalUpdate(id!),
+        listConfidenceSnapshots(id!),
+      ]);
+      if (cancelled) return;
       setSignal(row);
       setPreviousConfidence(row.confidence);
-    });
-    listEvidence(id!).then((rows) =>
-      setEvidenceRows(
-        rows.map((r) => ({
-          tier: r.tier,
-          direction: r.direction,
-          cluster_no: r.cluster_no,
-          source_name: r.source_name,
-          source_url: r.source_url,
-          description: r.description,
-          sort_order: r.sort_order,
-          source_published_at: r.source_published_at,
-        })),
-      ),
-    );
-    getCurrentSignalUpdate(id!).then((update) => {
+      setEvidenceRows(evRows.map(toEditorEvidenceRow));
       setBodyCopy(update?.body_copy ?? "");
       setWatchingText(update?.watching_text ?? "");
-    });
-    listConfidenceSnapshots(id!).then((snaps) => {
       if (snaps.length > 0) setPreviousConfidence(snaps[snaps.length - 1].confidence);
-    });
-  }, [id, isNew]);
+
+      if (draftId) {
+        const [draft, draftEvidence] = await Promise.all([
+          getDraftSignal(draftId),
+          listDraftEvidence(draftId),
+        ]);
+        if (cancelled) return;
+        setSignal((prev) => ({ ...prev, premise: draft.proposed_premise ?? prev.premise }));
+        setBodyCopy(draft.proposed_body_copy);
+        setEvidenceRows((prev) => [...prev, ...draftEvidence.map(toEditorEvidenceRow)]);
+      }
+    }
+
+    load().catch((e) => setError(errorMessage(e)));
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isNew, draftId]);
 
   // Live preview of what the public page will render — uses the exact same
   // formatClaimStatus() the static generator uses, so a broken/unattributed
@@ -182,6 +248,10 @@ export function SignalEditor() {
         setNotice("Saved as draft.");
       }
 
+      if (draftId) {
+        await updateDraftSignalStatus(draftId, "approved", { published_signal_id: savedSignal.id });
+      }
+
       if (isNew) navigate(`/signals/${savedSignal.id}`, { replace: true });
       else setSignal(savedSignal);
     } catch (e) {
@@ -205,6 +275,19 @@ export function SignalEditor() {
     }
   }
 
+  async function handleRefresh() {
+    if (isNew) return;
+    setRefreshing(true);
+    setError(null);
+    try {
+      const topic = await startRefresh({ signalId: id!, signalTitle: signal.title ?? "" });
+      navigate("/research", { state: { topicId: topic.id } });
+    } catch (e) {
+      setError(errorMessage(e));
+      setRefreshing(false);
+    }
+  }
+
   return (
     <div style={{ maxWidth: 800, margin: "40px auto", fontFamily: "sans-serif", fontSize: 14 }}>
       <h1 style={{ fontSize: 20 }}>{isNew ? "New signal" : signal.title}</h1>
@@ -224,6 +307,17 @@ export function SignalEditor() {
           value={signal.slug ?? ""}
           onChange={(e) => setSignal({ ...signal, slug: e.target.value })}
           placeholder="ford-affordability-bet"
+          style={inputStyle}
+        />
+      </label>
+
+      <label style={fieldStyle}>
+        Premise — one specific, falsifiable declarative sentence (not the title, not a question).
+        Every evidence row's direction is judged against this exact sentence.
+        <textarea
+          value={signal.premise ?? ""}
+          onChange={(e) => setSignal({ ...signal, premise: e.target.value })}
+          rows={2}
           style={inputStyle}
         />
       </label>
@@ -423,6 +517,11 @@ export function SignalEditor() {
           <button type="button" disabled={saving} onClick={() => handleSave(true)}>
             Publish
           </button>
+          {!isNew && (
+            <button type="button" disabled={refreshing} onClick={handleRefresh}>
+              {refreshing ? "Starting refresh…" : "Refresh from web"}
+            </button>
+          )}
         </div>
         {!isNew && (
           <button
