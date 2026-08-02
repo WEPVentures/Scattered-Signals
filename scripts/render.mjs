@@ -87,27 +87,11 @@ const CHART_CAPTION =
   "Rising means content is accumulating in support of the plot. Falling means it's moving against it.";
 
 /**
- * Positions points along a polyline into numbered circles + a row-assigned
- * set of date labels, shared by both chart flavors — only how `py` (the
- * vertical position) was computed differs between them. `numberByEvidenceId`
- * gives each point the same number used in the evidence list below, so a
- * reader can match a dot back to its source.
- *
- * Row assignment is based on each label's actual left/right extent (which
- * depends on its alignment — a right-aligned label extends leftward from
- * its dot, not rightward), not just dot-to-dot distance. A simple gap check
- * on dot position alone under-counts overlap for edge labels. Labels are
- * date-only — the full source name is one scroll away in the evidence list,
- * and cramming it into the chart is what caused the clutter in the first
- * place.
- *
- * With enough points, there just isn't room for every label without
- * overlapping regardless of row count — forcing one in anyway (the old
- * behavior: reuse whichever row has the least-bad overlap) produced
- * garbled, stacked text. Skipping a label once no free row exists is the
- * fix: that point's numbered dot is still on the chart, and every date is
- * still in the evidence list below — nothing is lost, just not force-fit
- * into an illegible spot.
+ * Positions points along a polyline into numbered circles, shared by both
+ * chart flavors — only how `py` (the vertical position) was computed
+ * differs between them. `numberByEvidenceId` gives each point the same
+ * number used in the evidence list below, so a reader can match a dot back
+ * to its source.
  */
 function renderPlottedPoints(points, numberByEvidenceId) {
   // AI-researched drafts can carry far more evidence than a hand-curated
@@ -129,34 +113,43 @@ function renderPlottedPoints(points, numberByEvidenceId) {
     })
     .join("\n");
 
-  const ROW_HEIGHT = 20;
-  const ROW_COUNT = isDense ? 5 : 3;
-  const LABEL_WIDTH = 100; // wide enough for "N Mon DD, YYYY" on one line at 11.5px
-  const PADDING = 10;
-  const rowRightEdge = new Array(ROW_COUNT).fill(-Infinity);
+  return { polyline, circles };
+}
 
-  const labels = points
-    .map((p, i) => {
-      const isFirst = i === 0;
-      const isLast = i === points.length - 1;
-      const align = isFirst ? "left" : isLast ? "right" : "center";
-      const translate = isFirst ? "0" : isLast ? "-100%" : "-50%";
+const TIME_AXIS_TICK_COUNT = 5;
 
-      const left = isFirst ? p.px : isLast ? p.px - LABEL_WIDTH : p.px - LABEL_WIDTH / 2;
-      const right = isFirst ? p.px + LABEL_WIDTH : isLast ? p.px : p.px + LABEL_WIDTH / 2;
+/** "12/25", "3/26" — short month/year, no leading zero, matching a normal chart tick. */
+function formatTickDate(ms) {
+  const d = new Date(ms);
+  return `${d.getMonth() + 1}/${String(d.getFullYear()).slice(-2)}`;
+}
 
-      const row = rowRightEdge.findIndex((edge) => left >= edge + PADDING);
-      if (row === -1) return null; // no free row — drop the label, keep the dot
-      rowRightEdge[row] = right;
+/**
+ * A fixed row of evenly-spaced calendar ticks spanning the chart's actual
+ * date range — replaces trying to label every individual point, which
+ * broke down once a topic had more than a handful of evidence items (dense
+ * clusters of dates with no room for every label). The chart's x-position
+ * is already linear in real time (see positionTrajectory in
+ * packages/core/src/premiseStrength.ts), so evenly-spaced dates land at
+ * evenly-spaced pixel positions too — a plain flex row with
+ * justify-content: space-between reproduces this exactly, no per-tick
+ * positioning math needed. Each point's exact date is still one scroll
+ * away in the Sources list; this axis only needs to show the shape of the
+ * timeline.
+ */
+function renderTimeAxisTicks(points) {
+  const firstMs = new Date(points[0].isoDate).getTime();
+  const lastMs = new Date(points[points.length - 1].isoDate).getTime();
+  const span = lastMs - firstMs;
 
-      const dateLabel = formatEvidenceDate(p.isoDate);
-      const number = numberByEvidenceId.get(p.evidenceId);
-      return `      <div class="chart-point-label" style="left:${((p.px / 600) * 100).toFixed(2)}%; top:${row * ROW_HEIGHT}px; text-align:${align}; transform:translateX(${translate});"><strong>${number}</strong> ${escapeHtml(dateLabel)}</div>`;
-    })
-    .filter(Boolean)
-    .join("\n");
+  const ticks = Array.from({ length: TIME_AXIS_TICK_COUNT }, (_, i) => {
+    const ms = firstMs + (span * i) / (TIME_AXIS_TICK_COUNT - 1);
+    return formatTickDate(ms);
+  });
 
-  return { polyline, circles, labels, rowCount: ROW_COUNT, rowHeight: ROW_HEIGHT };
+  return `    <div class="chart-time-axis">
+${ticks.map((t) => `      <span>${escapeHtml(t)}</span>`).join("\n")}
+    </div>`;
 }
 
 /**
@@ -182,7 +175,7 @@ function renderChartSection(chartPoints, evidence) {
     py: toY(p.y),
   }));
 
-  const { polyline, circles, labels, rowCount, rowHeight } = renderPlottedPoints(points, numberByEvidenceId);
+  const { polyline, circles } = renderPlottedPoints(points, numberByEvidenceId);
 
   const axis = `      <line x1="${PLOT_LEFT}" y1="15" x2="${PLOT_LEFT}" y2="125" stroke="#d2d2d7" stroke-width="1"/>
 ${PREMISE_STRENGTH_TICKS.map(
@@ -198,9 +191,7 @@ ${axis}
       <polyline points="${polyline}" fill="none" stroke="#1d1d1f" stroke-width="2"/>
 ${circles}
     </svg>
-    <div class="chart-point-labels" style="height:${rowCount * rowHeight + 12}px;">
-${labels}
-    </div>
+${renderTimeAxisTicks(points)}
   </div>`;
 }
 
@@ -230,7 +221,7 @@ function renderPoleSpectrumSection(chartPoints, evidence, signal) {
     py: toY(p.y),
   }));
 
-  const { polyline, circles, labels, rowCount, rowHeight } = renderPlottedPoints(points, numberByEvidenceId);
+  const { polyline, circles } = renderPlottedPoints(points, numberByEvidenceId);
 
   const axis = `      <line x1="${PLOT_LEFT}" y1="20" x2="${PLOT_RIGHT}" y2="20" stroke="#d2d2d7" stroke-width="1"/>
       <line x1="${PLOT_LEFT}" y1="120" x2="${PLOT_RIGHT}" y2="120" stroke="#d2d2d7" stroke-width="1"/>
@@ -247,9 +238,7 @@ ${axis}
       <polyline points="${polyline}" fill="none" stroke="#1d1d1f" stroke-width="2"/>
 ${circles}
     </svg>
-    <div class="chart-point-labels" style="height:${rowCount * rowHeight + 12}px;">
-${labels}
-    </div>
+${renderTimeAxisTicks(points)}
   </div>`;
 }
 
