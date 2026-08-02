@@ -95,12 +95,22 @@ function renderChartSection(chartPoints, evidence) {
     py: toY(p.y),
   }));
 
+  // AI-researched drafts can carry far more evidence than a hand-curated
+  // signal ever would (20+ sources isn't unusual) — shrinking the dots once
+  // there are a lot of them keeps overlapping circles from fusing into an
+  // unreadable blob, even though genuinely same-date points will still
+  // touch (there's no false x-position to give them; the date is real).
+  const DENSE_THRESHOLD = 12;
+  const isDense = points.length > DENSE_THRESHOLD;
+  const circleRadius = isDense ? 6 : 9;
+  const circleFontSize = isDense ? 8 : 10;
+
   const polyline = points.map((p) => `${p.px.toFixed(1)},${p.py.toFixed(1)}`).join(" ");
   const circles = points
     .map((p) => {
       const number = numberByEvidenceId.get(p.evidenceId);
-      return `      <circle cx="${p.px.toFixed(1)}" cy="${p.py.toFixed(1)}" r="9" fill="#1d1d1f"/>
-      <text x="${p.px.toFixed(1)}" y="${(p.py + 3.5).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="600" fill="#ffffff">${number}</text>`;
+      return `      <circle cx="${p.px.toFixed(1)}" cy="${p.py.toFixed(1)}" r="${circleRadius}" fill="#1d1d1f"/>
+      <text x="${p.px.toFixed(1)}" y="${(p.py + circleFontSize / 3).toFixed(1)}" text-anchor="middle" font-size="${circleFontSize}" font-weight="600" fill="#ffffff">${number}</text>`;
     })
     .join("\n");
 
@@ -116,8 +126,16 @@ ${PREMISE_STRENGTH_TICKS.map(
   // Labels are date-only — the full source name is one scroll away in the
   // evidence list, and cramming it into the chart is what caused the
   // clutter in the first place.
+  //
+  // With enough points, there just isn't room for every label without
+  // overlapping regardless of row count — forcing one in anyway (the old
+  // behavior: reuse whichever row has the least-bad overlap) produced
+  // garbled, stacked text. Skipping a label once no free row exists is the
+  // fix: that point's numbered dot is still on the chart, and every date is
+  // still in the evidence list below — nothing is lost, just not force-fit
+  // into an illegible spot.
   const ROW_HEIGHT = 20;
-  const ROW_COUNT = 3;
+  const ROW_COUNT = isDense ? 5 : 3;
   const LABEL_WIDTH = 100; // wide enough for "N Mon DD, YYYY" on one line at 11.5px
   const PADDING = 10;
   const rowRightEdge = new Array(ROW_COUNT).fill(-Infinity);
@@ -132,8 +150,8 @@ ${PREMISE_STRENGTH_TICKS.map(
       const left = isFirst ? p.px : isLast ? p.px - LABEL_WIDTH : p.px - LABEL_WIDTH / 2;
       const right = isFirst ? p.px + LABEL_WIDTH : isLast ? p.px : p.px + LABEL_WIDTH / 2;
 
-      let row = rowRightEdge.findIndex((edge) => left >= edge + PADDING);
-      if (row === -1) row = rowRightEdge.indexOf(Math.min(...rowRightEdge));
+      const row = rowRightEdge.findIndex((edge) => left >= edge + PADDING);
+      if (row === -1) return null; // no free row — drop the label, keep the dot
       rowRightEdge[row] = right;
 
       const dateLabel = new Date(p.isoDate).toLocaleDateString("en-US", {
@@ -144,6 +162,7 @@ ${PREMISE_STRENGTH_TICKS.map(
       const number = numberByEvidenceId.get(p.evidenceId);
       return `      <div class="chart-point-label" style="left:${((p.px / 600) * 100).toFixed(2)}%; top:${row * ROW_HEIGHT}px; text-align:${align}; transform:translateX(${translate});"><strong>${number}</strong> ${escapeHtml(dateLabel)}</div>`;
     })
+    .filter(Boolean)
     .join("\n");
 
   return `
