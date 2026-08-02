@@ -36,7 +36,7 @@ interface TrajectoryPoint {
 }
 
 /**
- * The evidence-balance trajectory behind Premise Strength: each item,
+ * The evidence-balance trajectory behind Evidence Strength: each item,
  * sorted by when its source was actually published (falling back to when
  * it was added to the dashboard if no source date is known), contributes a
  * signed, tier-weighted amount to a running total. This is "closeness to
@@ -61,7 +61,7 @@ export function computePremiseStrengthTrajectory(evidence: Evidence[]): Trajecto
   });
 }
 
-/** The current Premise Strength label — the last point in the trajectory. Defaults to "low" with no evidence yet. */
+/** The current Evidence Strength label — the last point in the trajectory. Defaults to "low" with no evidence yet. */
 export function currentPremiseStrength(evidence: Evidence[]): ConfidenceLevel {
   const trajectory = computePremiseStrengthTrajectory(evidence);
   if (trajectory.length === 0) return "low";

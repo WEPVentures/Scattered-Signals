@@ -51,7 +51,7 @@ test("formatClaimStatus renders a pending claim without a verdict", () => {
   );
   assert.ok(result);
   assert.equal(result!.label, "Claim in Progress");
-  assert.match(result!.statusText, /Pending/);
+  assert.match(result!.statusText, /Ongoing/);
 });
 
 test("formatClaimStatus returns null for trends (no bounded claim)", () => {

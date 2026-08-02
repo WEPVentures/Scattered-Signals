@@ -112,7 +112,7 @@ export function DraftReview() {
       )}
 
       <h2 style={{ fontSize: 15, color: "#6e6e73", marginTop: 24 }}>
-        Evidence ({evidence.length}) — computed Premise Strength: {draft.proposed_confidence}
+        Evidence ({evidence.length}) — computed Evidence Strength: {draft.proposed_confidence}
       </h2>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
         <thead>

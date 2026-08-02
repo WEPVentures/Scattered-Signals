@@ -198,6 +198,14 @@ export function SignalEditor() {
         // is no longer hand-set, but stays a useful cached snapshot rather
         // than drifting from whatever it was initialized to.
         confidence: computedPremiseStrength,
+        // Reopening a resolved claim (status switched back to Ongoing) clears
+        // its outcome/note/resolved-date rather than leaving them stale —
+        // the public page already ignores them once status isn't "resolved"
+        // (formatClaimStatus branches on status alone), but a re-resolution
+        // later should never risk inheriting a leftover value from before.
+        ...(signal.claim_status !== "resolved"
+          ? { claim_outcome: null, claim_resolution_note: null, claim_resolved_at: null }
+          : {}),
         ...(publish ? { status: "published" as const, published_at: new Date().toISOString() } : {}),
       });
 
@@ -347,8 +355,8 @@ export function SignalEditor() {
           }
           style={inputStyle}
         >
-          <option value="trend">Long-running trend</option>
-          <option value="claim">Bounded claim</option>
+          <option value="trend">Living Topic</option>
+          <option value="claim">Bounded Claim</option>
         </select>
       </label>
 
@@ -363,7 +371,7 @@ export function SignalEditor() {
 
       <label style={fieldStyle}>
         Homepage meta line (shown after the category, e.g. "Moderate
-        premise strength · Rising · 3 clusters · Claim pending Q1 2027")
+        evidence strength · Rising · 3 clusters · Claim ongoing, resolves Q1 2027")
         <input
           value={signal.homepage_meta ?? ""}
           onChange={(e) => setSignal({ ...signal, homepage_meta: e.target.value })}
@@ -401,7 +409,7 @@ export function SignalEditor() {
       </label>
 
       <p style={{ fontSize: 13, color: "#6e6e73", margin: "0 0 4px 0" }}>
-        Premise Strength: <strong style={{ color: "#1d1d1f" }}>{PREMISE_STRENGTH_LABEL[computedPremiseStrength]}</strong> —
+        Evidence Strength: <strong style={{ color: "#1d1d1f" }}>{PREMISE_STRENGTH_LABEL[computedPremiseStrength]}</strong> —
         computed automatically from your evidence (tier, direction, and source date). This is what
         the public page shows; there's nothing to set by hand.
       </p>
@@ -441,7 +449,8 @@ export function SignalEditor() {
             />
           </label>
           <label style={fieldStyle}>
-            Status
+            Status — if new evidence reopens a resolved claim, switch this back to Ongoing;
+            the outcome and resolution note below are cleared automatically on save.
             <select
               value={signal.claim_status ?? ""}
               onChange={(e) =>
@@ -450,7 +459,7 @@ export function SignalEditor() {
               style={inputStyle}
             >
               <option value="">—</option>
-              <option value="pending">Pending</option>
+              <option value="pending">Ongoing</option>
               <option value="resolved">Resolved</option>
             </select>
           </label>
@@ -469,8 +478,8 @@ export function SignalEditor() {
                   style={inputStyle}
                 >
                   <option value="">—</option>
-                  <option value="hit">Hit</option>
-                  <option value="missed">Missed</option>
+                  <option value="hit">Confirmed</option>
+                  <option value="missed">Disproven</option>
                   <option value="partial">Partial</option>
                 </select>
               </label>

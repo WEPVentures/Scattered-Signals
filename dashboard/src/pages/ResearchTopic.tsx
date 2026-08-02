@@ -159,8 +159,8 @@ export function ResearchTopic() {
               style={inputStyle}
             >
               <option value="">—</option>
-              <option value="trend">Long-running trend</option>
-              <option value="claim">Bounded claim</option>
+              <option value="trend">Living Topic</option>
+              <option value="claim">Bounded Claim</option>
             </select>
           </label>
 

@@ -148,7 +148,7 @@ ${PREMISE_STRENGTH_TICKS.map(
 
   return `
   <div class="chart-section">
-    <h2 class="section-heading">Premise Strength Over Time</h2>
+    <h2 class="section-heading">Evidence Strength Over Time</h2>
     <p class="chart-caption">Rising means the evidence is accumulating in support of the premise. Falling means it's moving against it.</p>
     <svg viewBox="0 0 600 140" preserveAspectRatio="none">
 ${axis}
@@ -215,7 +215,7 @@ ${GENERATED_NOTICE}
 
   <div class="meta-row">
     <div class="meta-item">
-      <span class="label">Premise Strength</span>
+      <span class="label">Evidence Strength</span>
       <span class="value">${CONFIDENCE_LABEL[premiseStrength]}</span>
     </div>
     <div class="meta-item">

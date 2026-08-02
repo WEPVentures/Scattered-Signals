@@ -39,7 +39,7 @@ export function formatClaimStatus(signal: Signal): ClaimCardCopy | null {
     return {
       label: "Claim in Progress",
       claimText: signal.claimText,
-      statusText: `Pending${resolves} · Will be scored Hit / Missed / Partial`,
+      statusText: `Ongoing${resolves} · Will be scored Confirmed / Disproven / Partial`,
       isMissed: false,
     };
   }
