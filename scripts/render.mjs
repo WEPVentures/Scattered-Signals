@@ -268,7 +268,7 @@ ${renderEvidenceSection(evidence)}
 
 <footer class="site-footer">
   <div class="site-footer-inner">
-    <p>© 2026 WEP Ventures LLC. All rights reserved.</p>
+    <p>© 2026 Plotlines</p>
     <nav class="footer-nav">
       <a href="../terms.html">Terms</a>
       <a href="../privacy.html">Privacy</a>
@@ -363,7 +363,7 @@ ${rows.map(renderSignalRow).join("\n")}
 
 <footer class="site-footer">
   <div class="site-footer-inner">
-    <p>© 2026 WEP Ventures LLC. All rights reserved.</p>
+    <p>© 2026 Plotlines</p>
     <nav class="footer-nav">
       <a href="terms.html">Terms</a>
       <a href="privacy.html">Privacy</a>
