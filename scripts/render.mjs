@@ -359,7 +359,7 @@ ${chartSectionHtml}
 ${statusCardHtml}
 
   <div class="evidence-section">
-    <h2 class="section-heading">Documentation</h2>
+    <h2 class="section-heading">Sources</h2>
 ${renderEvidenceSection(evidence)}
   </div>
 
