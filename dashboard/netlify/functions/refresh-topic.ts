@@ -1,23 +1,19 @@
 import { createClient } from "@supabase/supabase-js";
-import { currentPremiseStrength } from "@scattered-signals/core";
 import {
+  buildRefreshContext,
   buildResearchSystemPrompt,
   buildStructuringSystemPrompt,
-  draftEvidenceToCoreEvidence,
   runResearchPipeline,
 } from "./lib/researchPipeline.ts";
 
-// Background Function (note the -background suffix — Netlify runs these
-// async up to 15 minutes and returns a 202 to the caller immediately; the
-// real result is polled from research_topics/draft_signals, not the HTTP
-// response). Verifies the caller's session the same way publish-signal.ts
-// and delete-signal.ts do, then runs the two-call research pipeline and
-// writes a pending_review draft — nothing here ever touches the real
-// signals/evidence tables directly.
+// Background Function — same shape as research-topic.ts, but scoped to
+// "what's new" on an already-published signal instead of a fresh topic.
+// Writes a draft with published_signal_id set so the dashboard knows to
+// open the existing signal (and append, not replace) rather than start a
+// new one. `background: true` (not a "-background" filename suffix — see
+// research-topic.ts) is what makes this run async.
 
-function formatSubstackArticle(article: { headline: string; subhead: string; body: string }): string {
-  return `# ${article.headline}\n\n*${article.subhead}*\n\n${article.body}`;
-}
+export const config = { background: true };
 
 export default async (req: Request) => {
   if (req.method !== "POST") {
@@ -45,19 +41,50 @@ export default async (req: Request) => {
     return new Response(`Invalid session: ${userError?.message ?? "no user returned"}`, { status: 401 });
   }
 
-  // The client creates the research_topics row itself (see
-  // ResearchTopic.tsx) and only sends the id here — this is a Background
-  // Function, so Netlify returns an immediate 202 with no body to the
-  // caller; the client can't get a topicId back from this response. Giving
-  // the client its own pre-created row to poll is what makes that work.
+  // The client creates the research_topics row itself (see the "Refresh"
+  // button handler, mirroring ResearchTopic.tsx) and sends both ids here —
+  // this is a Background Function, so Netlify returns an immediate 202 with
+  // no body to the caller and the client can't get anything back from this
+  // response.
   let topicId: string;
+  let signalId: string;
   try {
     const body = await req.json();
     topicId = body.topicId;
+    signalId = body.signalId;
     if (!topicId) throw new Error("missing topicId");
+    if (!signalId) throw new Error("missing signalId");
   } catch {
-    return new Response("Expected JSON body with topicId", { status: 400 });
+    return new Response("Expected JSON body with topicId and signalId", { status: 400 });
   }
+
+  const { data: signal, error: signalError } = await admin
+    .from("signals")
+    .select("id, title, premise, category_id, type")
+    .eq("id", signalId)
+    .single();
+  if (signalError || !signal) {
+    return new Response("Topic not found", { status: 404 });
+  }
+
+  const { data: evidence, error: evidenceError } = await admin
+    .from("evidence")
+    .select("tier, direction, source_name, description, source_published_at, created_at")
+    .eq("signal_id", signalId)
+    .order("sort_order");
+  if (evidenceError) {
+    return new Response(`Failed to load evidence: ${evidenceError.message}`, { status: 500 });
+  }
+
+  const cutoffDate = (evidence ?? []).reduce((latest, e) => {
+    const effective = e.source_published_at ?? e.created_at;
+    return effective > latest ? effective : latest;
+  }, "1970-01-01");
+
+  const existingEvidenceSummary =
+    (evidence ?? [])
+      .map((e) => `- [Tier ${e.tier}, ${e.direction}] ${e.source_name}: ${e.description}`)
+      .join("\n") || "(none yet)";
 
   const { data: categories, error: categoriesError } = await admin
     .from("categories")
@@ -76,7 +103,6 @@ export default async (req: Request) => {
   if (topicError || !topic) {
     return new Response(`Research topic not found: ${topicError?.message}`, { status: 404 });
   }
-  const notes: string | null = topic.notes;
 
   const { data: run, error: runError } = await admin
     .from("research_runs")
@@ -93,7 +119,12 @@ export default async (req: Request) => {
   }
 
   try {
-    const userPrompt = notes ? `${topic.topic_text}\n\nAdditional context: ${notes}` : topic.topic_text;
+    const userPrompt = `${signal.title}\n\n${buildRefreshContext({
+      existingTitle: signal.title,
+      existingPremise: signal.premise,
+      existingEvidenceSummary,
+      cutoffDate,
+    })}`;
 
     const { draft, citations, costEstimateUsd } = await runResearchPipeline({
       apiKey: anthropicApiKey,
@@ -103,18 +134,17 @@ export default async (req: Request) => {
       categorySlugs: categories.map((c) => c.slug),
     });
 
-    const computedConfidence = currentPremiseStrength(draftEvidenceToCoreEvidence(draft.evidence));
-
     const { data: draftSignal, error: draftSignalError } = await admin
       .from("draft_signals")
       .insert({
         topic_id: topic.id,
         run_id: run.id,
+        published_signal_id: signalId,
         proposed_title: draft.title,
-        proposed_category_id: categoryIdBySlug.get(draft.category_slug) ?? null,
+        proposed_category_id: categoryIdBySlug.get(draft.category_slug) ?? signal.category_id,
         proposed_type: draft.type,
         proposed_body_copy: draft.body_copy,
-        proposed_confidence: computedConfidence,
+        proposed_confidence: "low", // recomputed for real once merged with existing evidence in the editor
         proposed_watching_text: draft.watching_text,
         proposed_claim_text: draft.claim_text,
         proposed_claim_resolves_around: draft.claim_resolves_around,
@@ -122,7 +152,7 @@ export default async (req: Request) => {
         proposed_meta_description: draft.meta_description,
         proposed_homepage_meta: draft.homepage_meta,
         proposed_premise: draft.premise,
-        proposed_substack_article: formatSubstackArticle(draft.substack_article),
+        proposed_substack_article: `# ${draft.substack_article.headline}\n\n*${draft.substack_article.subhead}*\n\n${draft.substack_article.body}`,
         status: "pending_review",
       })
       .select()

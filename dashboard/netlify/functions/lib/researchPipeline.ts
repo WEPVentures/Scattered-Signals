@@ -1,8 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Evidence } from "@scattered-signals/core";
 
-// Shared by research-topic-background.ts (new signal) and
-// refresh-topic-background.ts (update an existing one). Two-call pipeline:
+// Shared by research-topic.ts (new signal) and refresh-topic.ts (update an
+// existing one). Two-call pipeline:
 // a research call with the web_search server tool (Anthropic runs the
 // search loop itself — no client-side tool_use round trips needed), then a
 // structuring call over the same conversation history with no tools and a
