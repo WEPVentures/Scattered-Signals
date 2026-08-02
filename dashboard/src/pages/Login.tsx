@@ -18,7 +18,7 @@ export function Login() {
 
   return (
     <div style={{ maxWidth: 360, margin: "80px auto", fontFamily: "sans-serif" }}>
-      <h1 style={{ fontSize: 20, marginBottom: 24 }}>Wake — Dashboard</h1>
+      <h1 style={{ fontSize: 20, marginBottom: 24 }}>Nutgraph — Dashboard</h1>
       <form onSubmit={handleSubmit}>
         <label style={{ display: "block", marginBottom: 12 }}>
           Email
