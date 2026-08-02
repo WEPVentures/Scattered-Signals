@@ -113,7 +113,20 @@ async function main() {
   for (const signal of signals) {
     const category = categoryById.get(signal.category_id);
     const update = updateBySignalId.get(signal.id);
-    const evidence = evidenceBySignalId.get(signal.id) ?? [];
+    // Chronological, not sort_order — sort_order just reflects whatever
+    // order the evidence happened to arrive in (an AI draft's JSON array
+    // order, or manual entry order), which has no reason to match publish
+    // dates. The evidence list's numbering and the chart's numbered dots
+    // both derive their point numbers from this array's position, and the
+    // chart's own x-axis is already chronological internally — sorting
+    // here is what makes "number 1" land leftmost and the numbers actually
+    // climb left to right instead of scattering across the timeline.
+    const evidence = (evidenceBySignalId.get(signal.id) ?? [])
+      .slice()
+      .sort(
+        (a, b) =>
+          new Date(a.source_published_at ?? a.created_at) - new Date(b.source_published_at ?? b.created_at),
+      );
 
     if (!category) {
       errors.push(`Signal "${signal.slug}" has no matching category — skipping.`);
