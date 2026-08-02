@@ -23,12 +23,14 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
   min-height: 100dvh;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   background: var(--bg);
@@ -211,6 +213,17 @@ main {
   text-decoration: none;
 }
 
+/* Flex items default to min-width: auto, which refuses to shrink below the
+   content's natural width — a long title/meta line can then silently push
+   this row wider than the page's fixed column instead of wrapping, and
+   since which title is longest changes every time a different topic is
+   visible, the resulting overflow (and any horizontal shift it causes)
+   changes too. min-width: 0 lets the wrapper actually shrink to fit and
+   wrap normally like everything else on the page. */
+.signal-row-main {
+  min-width: 0;
+}
+
 .signal-index li.is-last-visible .signal-row {
   border-bottom: none;
 }
@@ -228,11 +241,13 @@ a.signal-row:hover {
   font-weight: 600;
   line-height: 1.35;
   margin: 0 0 6px 0;
+  overflow-wrap: break-word;
 }
 
 .signal-row-meta {
   font-size: 14px;
   color: var(--text-secondary);
+  overflow-wrap: break-word;
 }
 
 .signal-row-status {

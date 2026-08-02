@@ -293,7 +293,7 @@ function renderSignalRow({ signal, categoryLabel, categorySlug, statusPill }) {
 
   return `      <li data-category="${escapeHtml(categorySlugForFilter(categorySlug))}" data-top="${signal.is_top}">
         <a class="signal-row" href="topics/${escapeHtml(signal.slug)}.html">
-          <div>
+          <div class="signal-row-main">
             <p class="signal-row-title">${escapeHtml(signal.title)}</p>
             <p class="signal-row-meta">${escapeHtml(categoryLabel)} · ${escapeHtml(signal.homepage_meta)}</p>
           </div>
