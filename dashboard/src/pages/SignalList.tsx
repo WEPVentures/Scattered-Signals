@@ -4,12 +4,13 @@ import {
   listSignals,
   listPendingDraftSignals,
   listOpenResearchTopics,
+  archiveResearchTopic,
   type SignalRow,
   type DraftSignalRow,
   type ResearchTopicRow,
 } from "../lib/db";
 import { deleteSignal } from "../lib/deleteSignal";
-import { startRefresh } from "../lib/research";
+import { startRefresh, isResearchTopicStale } from "../lib/research";
 import { errorMessage } from "../lib/errorMessage";
 
 const POLL_INTERVAL_MS = 5000;
@@ -22,6 +23,7 @@ export function SignalList() {
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
 
   useEffect(() => {
     listSignals()
@@ -56,6 +58,20 @@ export function SignalList() {
     }
   }
 
+  async function handleCancelTopic(t: ResearchTopicRow) {
+    if (!confirm(`Cancel "${t.topic_text}"? It looks stuck and won't be retried automatically.`)) return;
+    setCancelingId(t.id);
+    setError(null);
+    try {
+      await archiveResearchTopic(t.id);
+      setOpenTopics((prev) => prev.filter((row) => row.id !== t.id));
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setCancelingId(null);
+    }
+  }
+
   async function handleRefresh(s: SignalRow) {
     setRefreshingId(s.id);
     setError(null);
@@ -82,14 +98,31 @@ export function SignalList() {
         <div style={{ marginTop: 16 }}>
           <h2 style={{ fontSize: 15, color: "#6e6e73" }}>Research in progress ({openTopics.length})</h2>
           <ul style={{ paddingLeft: 20 }}>
-            {openTopics.map((t) => (
-              <li key={t.id}>
-                <Link to="/research" state={{ topicId: t.id }}>
-                  {t.topic_text}
-                </Link>{" "}
-                <span style={{ color: t.status === "failed" ? "#a6291e" : "#6e6e73" }}>— {t.status}</span>
-              </li>
-            ))}
+            {openTopics.map((t) => {
+              const stale = isResearchTopicStale(t);
+              return (
+                <li key={t.id}>
+                  <Link to="/research" state={{ topicId: t.id }}>
+                    {t.topic_text}
+                  </Link>{" "}
+                  <span style={{ color: t.status === "failed" ? "#a6291e" : "#6e6e73" }}>— {t.status}</span>
+                  {stale && (
+                    <>
+                      {" "}
+                      <span style={{ color: "#a6291e" }}>— looks stuck, no update in a while</span>{" "}
+                      <button
+                        type="button"
+                        disabled={cancelingId === t.id}
+                        onClick={() => handleCancelTopic(t)}
+                        style={{ color: "#a6291e", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                      >
+                        {cancelingId === t.id ? "Canceling…" : "Cancel"}
+                      </button>
+                    </>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

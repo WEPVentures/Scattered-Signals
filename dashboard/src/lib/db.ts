@@ -308,6 +308,15 @@ export async function getResearchTopic(id: string) {
   return data as ResearchTopicRow;
 }
 
+// Used when a topic is stuck (its triggering request never actually reached
+// the background function, so nothing is left to update its status) — lets
+// a human clear it manually instead of it sitting in "queued"/"researching"
+// forever with no error and no retry.
+export async function archiveResearchTopic(id: string) {
+  const { error } = await supabase.from("research_topics").update({ status: "archived" }).eq("id", id);
+  if (error) throw error;
+}
+
 // Surfaced on SignalList so an in-progress (or failed) run is still findable
 // after navigating away from its polling page — ResearchTopic.tsx only knows
 // about the topicId it was given at start, there's no other way back to it.

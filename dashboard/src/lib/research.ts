@@ -1,5 +1,22 @@
 import { supabase } from "./supabaseClient";
-import { createResearchTopic } from "./db";
+import { createResearchTopic, type ResearchTopicRow } from "./db";
+
+// A topic should flip from "queued" to "researching" within seconds of the
+// triggering fetch landing — if it's still "queued" well past that, the
+// request almost certainly never reached the background function (no
+// retry exists, so nothing will ever change it). "researching" gets a much
+// longer grace period since a real run can take several minutes, capped at
+// Netlify Background Functions' own 15-minute hard limit — past that the
+// function was killed without ever writing a final status.
+const STALE_QUEUED_MS = 2 * 60 * 1000;
+const STALE_RESEARCHING_MS = 16 * 60 * 1000;
+
+export function isResearchTopicStale(topic: ResearchTopicRow): boolean {
+  const elapsedMs = Date.now() - new Date(topic.submitted_at).getTime();
+  if (topic.status === "queued") return elapsedMs > STALE_QUEUED_MS;
+  if (topic.status === "researching") return elapsedMs > STALE_RESEARCHING_MS;
+  return false;
+}
 
 /**
  * Starts a brand-new research run. Creates the research_topics row directly

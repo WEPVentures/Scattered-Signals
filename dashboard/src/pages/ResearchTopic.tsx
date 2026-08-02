@@ -5,9 +5,11 @@ import {
   getResearchTopic,
   getDraftSignalByTopicId,
   getLatestResearchRun,
+  archiveResearchTopic,
   type CategoryRow,
+  type ResearchTopicRow,
 } from "../lib/db";
-import { startResearch } from "../lib/research";
+import { startResearch, isResearchTopicStale } from "../lib/research";
 import { errorMessage } from "../lib/errorMessage";
 
 const POLL_INTERVAL_MS = 4000;
@@ -27,9 +29,10 @@ export function ResearchTopic() {
   const [categoryHint, setCategoryHint] = useState("");
   const [typeHint, setTypeHint] = useState<"" | "trend" | "claim">("");
   const [topicId, setTopicId] = useState<string | null>(resumeTopicId);
-  const [status, setStatus] = useState<string | null>(null);
+  const [topic, setTopic] = useState<ResearchTopicRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [canceling, setCanceling] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -41,13 +44,13 @@ export function ResearchTopic() {
 
     async function poll() {
       try {
-        const topic = await getResearchTopic(topicId!);
-        setStatus(topic.status);
-        if (topic.status === "draft_ready") {
+        const fetched = await getResearchTopic(topicId!);
+        setTopic(fetched);
+        if (fetched.status === "draft_ready") {
           if (pollRef.current) clearInterval(pollRef.current);
           const draft = await getDraftSignalByTopicId(topicId!);
           if (draft) navigate(`/drafts/${draft.id}`);
-        } else if (topic.status === "failed") {
+        } else if (fetched.status === "failed") {
           if (pollRef.current) clearInterval(pollRef.current);
           const run = await getLatestResearchRun(topicId!);
           setError(run?.error_message ?? "Research failed for an unknown reason.");
@@ -69,18 +72,32 @@ export function ResearchTopic() {
     setStarting(true);
     setError(null);
     try {
-      const topic = await startResearch({
+      const started = await startResearch({
         topicText: topicText.trim(),
         notes: notes.trim() || null,
         categoryHint: categoryHint || null,
         typeHint: typeHint || null,
       });
-      setTopicId(topic.id);
-      setStatus(topic.status);
+      setTopicId(started.id);
+      setTopic(started);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
       setStarting(false);
+    }
+  }
+
+  async function handleCancel() {
+    if (!topic) return;
+    if (!confirm("Cancel this run? It looks stuck and won't be retried automatically.")) return;
+    setCanceling(true);
+    setError(null);
+    try {
+      await archiveResearchTopic(topic.id);
+      navigate("/");
+    } catch (e) {
+      setError(errorMessage(e));
+      setCanceling(false);
     }
   }
 
@@ -158,13 +175,24 @@ export function ResearchTopic() {
       {topicId && (
         <div style={{ marginTop: 16 }}>
           <p>
-            Status: <strong>{status ?? "queued"}</strong>
+            Status: <strong>{topic?.status ?? "queued"}</strong>
           </p>
-          {(status === "queued" || status === "researching") && (
+          {(topic?.status === "queued" || topic?.status === "researching") && (
             <p style={{ color: "#6e6e73" }}>
               Researching — this can take a few minutes. Feel free to leave this page; the draft
               will be waiting on the Topics page when it's ready.
             </p>
+          )}
+          {topic && isResearchTopicStale(topic) && (
+            <div style={{ marginTop: 8 }}>
+              <p style={{ color: "#a6291e" }}>
+                This is taking longer than expected and likely isn't going to finish on its own —
+                there's no automatic retry. You can cancel it and try again.
+              </p>
+              <button type="button" disabled={canceling} onClick={handleCancel}>
+                {canceling ? "Canceling…" : "Cancel this run"}
+              </button>
+            </div>
           )}
           {error && <p style={{ color: "#a6291e" }}>{error}</p>}
         </div>
