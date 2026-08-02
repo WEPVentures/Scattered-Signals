@@ -24,6 +24,14 @@
 html {
   -webkit-text-size-adjust: 100%;
   overflow-x: hidden;
+  /* Reserves the vertical scrollbar's width on every page, whether or not
+     that page is actually tall enough to need one. Without this, main/
+     header/footer (all centered via margin: 0 auto) re-center into a
+     viewport that's ~15px wider or narrower depending on the previous
+     page's content height — since every topic has a different amount of
+     content, that recentering happens on almost every navigation and
+     reads as the whole page shifting sideways. */
+  scrollbar-gutter: stable;
 }
 
 body {
