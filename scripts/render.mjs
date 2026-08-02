@@ -406,9 +406,9 @@ function renderSignalRow({ signal, categoryLabel, categorySlug, statusPill }) {
 }
 
 /**
- * Regenerates index.html. The hero copy is a fixed template constant, not
- * data-driven (there's no site-copy table yet) — edit it here, not by hand
- * on the generated file. Only the filter pills + signal list are dynamic.
+ * Regenerates index.html. The filter pills sit at the very top of the page,
+ * directly under the header — there's no hero section. Only the filter
+ * pills + signal list are dynamic.
  *
  * Pills are only rendered for categories with at least one published signal
  * — the categories table can carry far more rows than are in use at any
@@ -428,7 +428,7 @@ export function renderIndexPage({ rows, categories }) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Wake — What actually happened, as it happens.</title>
+<title>Wake</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -444,12 +444,7 @@ ${GENERATED_NOTICE}
 </header>
 
 <main>
-  <section class="hero">
-    <h1>What actually happened, as it happens.</h1>
-    <p class="hero-sub">Not what happens next.</p>
-  </section>
-
-  <section>
+  <section class="pills-section">
     <div class="filter-pills" role="tablist" aria-label="Filter topics">
       <button class="filter-pill" data-category="top" role="tab" aria-selected="false">Trending</button>
       <button class="filter-pill active" data-category="all" role="tab" aria-selected="true">All</button>
