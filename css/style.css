@@ -118,7 +118,23 @@ a:hover {
 
 /* ---------- Layout ---------- */
 
+/* main is a direct flex child of body (display: flex; flex-direction:
+   column). A flex item with auto margins on the cross axis (left/right,
+   here) doesn't get stretched to fill the container the way a normal
+   block box would — per spec it's sized to fit its own content first,
+   THEN centered by the auto margins. Without an explicit width, main's
+   actual box was "however wide its current content happens to be, capped
+   at 692px" — which silently changed size (and therefore centered
+   position) every time the visible topics changed, since different
+   titles/filter states have different natural content widths. width:
+   100% forces a deterministic full-width flex-basis before max-width
+   clips it down to 692px, so the box size no longer depends on content.
+   header/footer don't have this bug because their centering lives on an
+   inner wrapper div (.site-header-inner / .site-footer-inner) that isn't
+   itself a flex item — main applies it directly, which is the actual
+   root cause. */
 main {
+  width: 100%;
   max-width: var(--content-width);
   margin: 0 auto;
   padding: 0 24px;
