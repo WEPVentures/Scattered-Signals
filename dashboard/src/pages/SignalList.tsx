@@ -1,14 +1,24 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { listSignals, listPendingDraftSignals, type SignalRow, type DraftSignalRow } from "../lib/db";
+import {
+  listSignals,
+  listPendingDraftSignals,
+  listOpenResearchTopics,
+  type SignalRow,
+  type DraftSignalRow,
+  type ResearchTopicRow,
+} from "../lib/db";
 import { deleteSignal } from "../lib/deleteSignal";
 import { startRefresh } from "../lib/research";
 import { errorMessage } from "../lib/errorMessage";
+
+const POLL_INTERVAL_MS = 5000;
 
 export function SignalList() {
   const navigate = useNavigate();
   const [signals, setSignals] = useState<SignalRow[] | null>(null);
   const [drafts, setDrafts] = useState<DraftSignalRow[]>([]);
+  const [openTopics, setOpenTopics] = useState<ResearchTopicRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
@@ -17,9 +27,19 @@ export function SignalList() {
     listSignals()
       .then(setSignals)
       .catch((e) => setError(errorMessage(e)));
-    listPendingDraftSignals()
-      .then(setDrafts)
-      .catch((e) => setError(errorMessage(e)));
+
+    function pollResearch() {
+      listPendingDraftSignals()
+        .then(setDrafts)
+        .catch((e) => setError(errorMessage(e)));
+      listOpenResearchTopics()
+        .then(setOpenTopics)
+        .catch((e) => setError(errorMessage(e)));
+    }
+
+    pollResearch();
+    const interval = setInterval(pollResearch, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
   }, []);
 
   async function handleDelete(s: SignalRow) {
@@ -58,6 +78,22 @@ export function SignalList() {
         </div>
       </div>
       {error && <p style={{ color: "#a6291e" }}>{error}</p>}
+
+      {openTopics.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <h2 style={{ fontSize: 15, color: "#6e6e73" }}>Research in progress ({openTopics.length})</h2>
+          <ul style={{ paddingLeft: 20 }}>
+            {openTopics.map((t) => (
+              <li key={t.id}>
+                <Link to="/research" state={{ topicId: t.id }}>
+                  {t.topic_text}
+                </Link>{" "}
+                <span style={{ color: t.status === "failed" ? "#a6291e" : "#6e6e73" }}>— {t.status}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {drafts.length > 0 && (
         <div style={{ marginTop: 16 }}>

@@ -308,6 +308,21 @@ export async function getResearchTopic(id: string) {
   return data as ResearchTopicRow;
 }
 
+// Surfaced on SignalList so an in-progress (or failed) run is still findable
+// after navigating away from its polling page — ResearchTopic.tsx only knows
+// about the topicId it was given at start, there's no other way back to it.
+// draft_ready topics aren't included here; once a draft exists it shows up
+// via listPendingDraftSignals instead.
+export async function listOpenResearchTopics() {
+  const { data, error } = await supabase
+    .from("research_topics")
+    .select("*")
+    .in("status", ["queued", "researching", "failed"])
+    .order("submitted_at", { ascending: false });
+  if (error) throw error;
+  return data as ResearchTopicRow[];
+}
+
 export async function getLatestResearchRun(topicId: string) {
   const { data, error } = await supabase
     .from("research_runs")
