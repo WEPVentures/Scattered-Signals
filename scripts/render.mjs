@@ -352,7 +352,7 @@ ${GENERATED_NOTICE}
     </div>
   </div>
 
-  ${signal.homepage_meta ? `<p class="synopsis">${escapeHtml(signal.homepage_meta)}</p>` : ""}
+  ${signal.homepage_meta ? `<p class="synopsis"><span class="synopsis-label">Summary:</span> ${escapeHtml(signal.homepage_meta)}</p>` : ""}
 
   <div class="body-copy">
 ${renderBodyCopy(bodyCopy)}

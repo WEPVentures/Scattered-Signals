@@ -370,15 +370,23 @@ a.signal-row:hover {
   color: var(--text);
 }
 
-/* One-sentence synopsis, sourced from the same homepage_meta teaser shown
-   on the index page — sits between the stat row and the full body copy so
-   a 15-second reader gets the gist before committing to the narrative. */
+/* The nut graph: one sentence, sourced from the same homepage_meta teaser
+   shown on the index page, that tells a reader why the story matters
+   before they commit to the full narrative below. This is the literal
+   product concept the site is named for, so it's set in full dark text
+   (not the muted secondary gray used elsewhere) and explicitly labeled —
+   it should read as the single most important line on the page, not a
+   caption. */
 .synopsis {
   font-size: 18px;
   font-weight: 500;
   line-height: 1.5;
-  color: var(--text-secondary);
+  color: var(--text);
   margin: 20px 0 0 0;
+}
+
+.synopsis-label {
+  font-weight: 700;
 }
 
 /* ---------- Body copy ---------- */
