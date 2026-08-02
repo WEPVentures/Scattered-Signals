@@ -334,7 +334,7 @@ ${GENERATED_NOTICE}
 ${categoryPills}
     </div>
 
-    <h2 class="section-heading">News</h2>
+    <h2 class="section-heading">Topics</h2>
     <ul class="signal-index">
 ${rows.map(renderSignalRow).join("\n")}
     </ul>

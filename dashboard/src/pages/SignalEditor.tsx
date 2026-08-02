@@ -137,7 +137,11 @@ export function SignalEditor() {
 
       await upsertCurrentSignalUpdate({
         signal_id: savedSignal.id,
-        eyebrow_label: `${categories.find((c) => c.id === savedSignal.category_id)?.label ?? ""} · Updated ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
+        // Category isn't included here — renderSignalPage already prepends
+        // the live category label from the categories join, so baking it
+        // into eyebrow_label too produced "Culture & Policy · Culture &
+        // Policy · Updated ...".
+        eyebrow_label: `Updated ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
         published_at: new Date().toISOString(),
         body_copy: bodyCopy,
         watching_text: watchingText || null,
