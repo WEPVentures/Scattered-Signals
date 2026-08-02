@@ -12,7 +12,10 @@ export const CONFIDENCE_Y: Record<ConfidenceLevel, number> = {
 
 export interface ChartPoint {
   x: number; // 0..1 across the chart width
-  y: number; // 0 (collapsed) .. 3 (high)
+  // Meaning depends on which function produced it: evidenceToChartPoints
+  // (Bounded Claims) uses 0 (collapsed)..3 (high); evidenceToPlotMovementPoints
+  // (Living Topics) uses -1 (pole B)..1 (pole A), 0 = neutral.
+  y: number;
   label: string;
   isoDate: string;
   evidenceId: string; // lets the caller cross-reference this point back to the evidence list

@@ -139,6 +139,9 @@ export const handler: BackgroundHandler = async (event) => {
         proposed_meta_description: draft.meta_description,
         proposed_homepage_meta: draft.homepage_meta,
         proposed_premise: draft.premise,
+        proposed_pole_a_label: draft.pole_a_label,
+        proposed_pole_b_label: draft.pole_b_label,
+        proposed_current_read: draft.current_read,
         proposed_substack_article: formatSubstackArticle(draft.substack_article),
         status: "pending_review",
       })

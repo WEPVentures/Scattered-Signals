@@ -41,6 +41,9 @@ export interface ResearchDraft {
   homepage_meta: string;
   claim_text: string | null;
   claim_resolves_around: string | null;
+  pole_a_label: string | null;
+  pole_b_label: string | null;
+  current_read: string | null;
   evidence: DraftEvidenceOut[];
   substack_article: {
     headline: string;
@@ -64,6 +67,8 @@ const PERSONA_AND_RULES = `You are a seasoned, mature New York Times investigati
 Rules that are load-bearing, not stylistic:
 
 1. PREMISE. State one specific, falsifiable declarative sentence as the "premise" — not the article's working title, not a question. Every evidence item's "direction" (supports/contradicts) must be your judgment of whether that item makes THIS EXACT SENTENCE more or less likely to be true. If you can't state a premise that could have come out false, the topic isn't ready to score — sharpen it until it is.
+
+   If "type" is "trend" (a Living Topic — an ongoing narrative with no fixed resolution), also name the two short competing narrative poles the story oscillates between as "pole_a_label" and "pole_b_label" (one or two words each, e.g. "Open-source" / "Private" — these are the two ends of the real back-and-forth tension in the coverage, not a for/against framing of your premise), and write one "current_read" sentence on where things stand right now. For a trend, an evidence item's "direction" means "pushes the narrative toward pole A" (supports) or "pushes it toward pole B" (contradicts) — not "makes the premise more/less true." If "type" is "claim" (a Bounded Claim that resolves), leave "pole_a_label", "pole_b_label", and "current_read" as null — they don't apply.
 
 2. TIERS. Score each piece of evidence:
    - Tier 1: a primary source — a filing, a direct statement, a government record.
@@ -94,11 +99,18 @@ export function buildRefreshContext(params: {
   existingPremise: string | null;
   existingEvidenceSummary: string;
   cutoffDate: string;
+  existingPoleALabel?: string | null;
+  existingPoleBLabel?: string | null;
 }): string {
+  const poleContext =
+    params.existingPoleALabel && params.existingPoleBLabel
+      ? `\nExisting poles: "${params.existingPoleALabel}" vs. "${params.existingPoleBLabel}" — keep these exact labels stable, do not invent new ones; only "current_read" should change on a refresh.`
+      : "";
+
   return `This is a refresh of an already-published topic on the site, not a brand-new one.
 
 Existing title: ${params.existingTitle}
-Existing premise: ${params.existingPremise ?? "(not yet recorded — infer one consistent with the title and evidence below, and include it in your draft so it gets backfilled)"}
+Existing premise: ${params.existingPremise ?? "(not yet recorded — infer one consistent with the title and evidence below, and include it in your draft so it gets backfilled)"}${poleContext}
 Existing evidence already on the page (do not re-cite any of these):
 ${params.existingEvidenceSummary}
 
@@ -147,6 +159,9 @@ export function buildDraftSchema(categorySlugs: string[]) {
         homepage_meta: { type: "string" },
         claim_text: { type: ["string", "null"] },
         claim_resolves_around: { type: ["string", "null"] },
+        pole_a_label: { type: ["string", "null"] },
+        pole_b_label: { type: ["string", "null"] },
+        current_read: { type: ["string", "null"] },
         evidence: { type: "array", items: EVIDENCE_ITEM_SCHEMA },
         substack_article: {
           type: "object",
@@ -171,6 +186,9 @@ export function buildDraftSchema(categorySlugs: string[]) {
         "homepage_meta",
         "claim_text",
         "claim_resolves_around",
+        "pole_a_label",
+        "pole_b_label",
+        "current_read",
         "evidence",
         "substack_article",
       ],

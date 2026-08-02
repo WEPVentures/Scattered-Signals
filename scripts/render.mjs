@@ -79,28 +79,37 @@ const PREMISE_STRENGTH_TICKS = [
   { value: 0, label: "Collapsed" },
 ];
 
+// Shared between the Bounded Claim chart (renderChartSection) and the
+// Living Topic chart (renderPoleSpectrumSection) — same heading/caption
+// regardless of which mechanic is underneath.
+const CHART_HEADING = "Plot Movement";
+const CHART_CAPTION =
+  "Rising means the evidence is accumulating in support of the plot. Falling means it's moving against it.";
+
 /**
- * Chart points come pre-computed (evidenceToChartPoints from packages/core)
- * — this just draws them. `evidence` is the same array/order used to
- * number the evidence list below, so each dot can be labeled with the same
- * number as its source in that list — otherwise there's no way to tell
- * which dot is which source.
+ * Positions points along a polyline into numbered circles + a row-assigned
+ * set of date labels, shared by both chart flavors — only how `py` (the
+ * vertical position) was computed differs between them. `numberByEvidenceId`
+ * gives each point the same number used in the evidence list below, so a
+ * reader can match a dot back to its source.
+ *
+ * Row assignment is based on each label's actual left/right extent (which
+ * depends on its alignment — a right-aligned label extends leftward from
+ * its dot, not rightward), not just dot-to-dot distance. A simple gap check
+ * on dot position alone under-counts overlap for edge labels. Labels are
+ * date-only — the full source name is one scroll away in the evidence list,
+ * and cramming it into the chart is what caused the clutter in the first
+ * place.
+ *
+ * With enough points, there just isn't room for every label without
+ * overlapping regardless of row count — forcing one in anyway (the old
+ * behavior: reuse whichever row has the least-bad overlap) produced
+ * garbled, stacked text. Skipping a label once no free row exists is the
+ * fix: that point's numbered dot is still on the chart, and every date is
+ * still in the evidence list below — nothing is lost, just not force-fit
+ * into an illegible spot.
  */
-function renderChartSection(chartPoints, evidence) {
-  if (chartPoints.length === 0) return "";
-
-  const numberByEvidenceId = new Map(evidence.map((item, i) => [item.id, i + 1]));
-
-  const PLOT_LEFT = 92;
-  const PLOT_RIGHT = 580;
-  const toY = (y) => 120 - (y / 3) * 100; // 0..3 scale -> 120..20 px within a 140-tall viewBox
-
-  const points = chartPoints.map((p) => ({
-    ...p,
-    px: PLOT_LEFT + p.x * (PLOT_RIGHT - PLOT_LEFT),
-    py: toY(p.y),
-  }));
-
+function renderPlottedPoints(points, numberByEvidenceId) {
   // AI-researched drafts can carry far more evidence than a hand-curated
   // signal ever would (20+ sources isn't unusual) — shrinking the dots once
   // there are a lot of them keeps overlapping circles from fusing into an
@@ -120,26 +129,6 @@ function renderChartSection(chartPoints, evidence) {
     })
     .join("\n");
 
-  const axis = `      <line x1="${PLOT_LEFT}" y1="15" x2="${PLOT_LEFT}" y2="125" stroke="#d2d2d7" stroke-width="1"/>
-${PREMISE_STRENGTH_TICKS.map(
-    (t) => `      <text x="${PLOT_LEFT - 10}" y="${toY(t.value) + 4}" text-anchor="end" font-size="11" fill="#86868b">${t.label}</text>`,
-  ).join("\n")}`;
-
-  // Row assignment based on each label's actual left/right extent (which
-  // depends on its alignment — a right-aligned label extends leftward from
-  // its dot, not rightward), not just dot-to-dot distance. A simple gap
-  // check on dot position alone under-counts overlap for edge labels.
-  // Labels are date-only — the full source name is one scroll away in the
-  // evidence list, and cramming it into the chart is what caused the
-  // clutter in the first place.
-  //
-  // With enough points, there just isn't room for every label without
-  // overlapping regardless of row count — forcing one in anyway (the old
-  // behavior: reuse whichever row has the least-bad overlap) produced
-  // garbled, stacked text. Skipping a label once no free row exists is the
-  // fix: that point's numbered dot is still on the chart, and every date is
-  // still in the evidence list below — nothing is lost, just not force-fit
-  // into an illegible spot.
   const ROW_HEIGHT = 20;
   const ROW_COUNT = isDense ? 5 : 3;
   const LABEL_WIDTH = 100; // wide enough for "N Mon DD, YYYY" on one line at 11.5px
@@ -167,16 +156,98 @@ ${PREMISE_STRENGTH_TICKS.map(
     .filter(Boolean)
     .join("\n");
 
+  return { polyline, circles, labels, rowCount: ROW_COUNT, rowHeight: ROW_HEIGHT };
+}
+
+/**
+ * Chart points come pre-computed (evidenceToChartPoints from packages/core)
+ * — this just draws them. `evidence` is the same array/order used to
+ * number the evidence list below, so each dot can be labeled with the same
+ * number as its source in that list — otherwise there's no way to tell
+ * which dot is which source. Bounded Claims only — Living Topics use
+ * renderPoleSpectrumSection instead.
+ */
+function renderChartSection(chartPoints, evidence) {
+  if (chartPoints.length === 0) return "";
+
+  const numberByEvidenceId = new Map(evidence.map((item, i) => [item.id, i + 1]));
+
+  const PLOT_LEFT = 92;
+  const PLOT_RIGHT = 580;
+  const toY = (y) => 120 - (y / 3) * 100; // 0..3 scale -> 120..20 px within a 140-tall viewBox
+
+  const points = chartPoints.map((p) => ({
+    ...p,
+    px: PLOT_LEFT + p.x * (PLOT_RIGHT - PLOT_LEFT),
+    py: toY(p.y),
+  }));
+
+  const { polyline, circles, labels, rowCount, rowHeight } = renderPlottedPoints(points, numberByEvidenceId);
+
+  const axis = `      <line x1="${PLOT_LEFT}" y1="15" x2="${PLOT_LEFT}" y2="125" stroke="#d2d2d7" stroke-width="1"/>
+${PREMISE_STRENGTH_TICKS.map(
+    (t) => `      <text x="${PLOT_LEFT - 10}" y="${toY(t.value) + 4}" text-anchor="end" font-size="11" fill="#86868b">${t.label}</text>`,
+  ).join("\n")}`;
+
   return `
   <div class="chart-section">
-    <h2 class="section-heading">Evidence Strength Over Time</h2>
-    <p class="chart-caption">Rising means the evidence is accumulating in support of the premise. Falling means it's moving against it.</p>
+    <h2 class="section-heading">${CHART_HEADING}</h2>
+    <p class="chart-caption">${CHART_CAPTION}</p>
     <svg viewBox="0 0 600 140" preserveAspectRatio="none">
 ${axis}
       <polyline points="${polyline}" fill="none" stroke="#1d1d1f" stroke-width="2"/>
 ${circles}
     </svg>
-    <div class="chart-point-labels" style="height:${ROW_COUNT * ROW_HEIGHT + 12}px;">
+    <div class="chart-point-labels" style="height:${rowCount * rowHeight + 12}px;">
+${labels}
+    </div>
+  </div>`;
+}
+
+/**
+ * Living Topics only. Same numbered-circle-on-a-polyline approach as
+ * renderChartSection, but the Y-axis is a -1 (pole B)..1 (pole A) spectrum
+ * (evidenceToPlotMovementPoints from packages/core) instead of a 0..3
+ * strength scale: solid boundary lines top/bottom carry the topic's own
+ * pole labels instead of High/Moderate/Low/Collapsed ticks, and a dashed
+ * line marks the neutral midline (y=70, the tanh-zero point) instead of a
+ * left-edge value axis. Omits itself if either pole label isn't set yet —
+ * same graceful-omission pattern as the claim card.
+ */
+function renderPoleSpectrumSection(chartPoints, evidence, signal) {
+  if (chartPoints.length === 0) return "";
+  if (!signal.pole_a_label || !signal.pole_b_label) return "";
+
+  const numberByEvidenceId = new Map(evidence.map((item, i) => [item.id, i + 1]));
+
+  const PLOT_LEFT = 92;
+  const PLOT_RIGHT = 580;
+  const toY = (y) => 70 - y * 50; // -1..1 -> 120..20 px within a 140-tall viewBox
+
+  const points = chartPoints.map((p) => ({
+    ...p,
+    px: PLOT_LEFT + p.x * (PLOT_RIGHT - PLOT_LEFT),
+    py: toY(p.y),
+  }));
+
+  const { polyline, circles, labels, rowCount, rowHeight } = renderPlottedPoints(points, numberByEvidenceId);
+
+  const axis = `      <line x1="${PLOT_LEFT}" y1="20" x2="${PLOT_RIGHT}" y2="20" stroke="#d2d2d7" stroke-width="1"/>
+      <line x1="${PLOT_LEFT}" y1="120" x2="${PLOT_RIGHT}" y2="120" stroke="#d2d2d7" stroke-width="1"/>
+      <line x1="${PLOT_LEFT}" y1="70" x2="${PLOT_RIGHT}" y2="70" stroke="#d2d2d7" stroke-width="1" stroke-dasharray="4 4"/>
+      <text x="${PLOT_LEFT - 10}" y="24" text-anchor="end" font-size="11" fill="#86868b">${escapeHtml(signal.pole_a_label)}</text>
+      <text x="${PLOT_LEFT - 10}" y="124" text-anchor="end" font-size="11" fill="#86868b">${escapeHtml(signal.pole_b_label)}</text>`;
+
+  return `
+  <div class="chart-section">
+    <h2 class="section-heading">${CHART_HEADING}</h2>
+    <p class="chart-caption">${CHART_CAPTION}</p>
+    <svg viewBox="0 0 600 140" preserveAspectRatio="none">
+${axis}
+      <polyline points="${polyline}" fill="none" stroke="#1d1d1f" stroke-width="2"/>
+${circles}
+    </svg>
+    <div class="chart-point-labels" style="height:${rowCount * rowHeight + 12}px;">
 ${labels}
     </div>
   </div>`;
@@ -196,6 +267,21 @@ function renderClaimCard(claimCopy) {
   </div>`;
 }
 
+/**
+ * Living Topics' claim-card equivalent. Header is static — Living Topics
+ * never resolve, so there's nothing to store for it — the body is the
+ * editorially-refreshed `current_read` summary. Omits itself if that's not
+ * set yet, same graceful-omission pattern as renderClaimCard.
+ */
+function renderPlotStatusCard(signal) {
+  if (!signal.current_read) return "";
+  return `
+  <div class="card">
+    <p class="card-label">Plot Status: Ongoing</p>
+    <p class="card-text">${renderInline(signal.current_read)}</p>
+  </div>`;
+}
+
 const CONFIDENCE_LABEL = { low: "Low", moderate: "Moderate", high: "High", collapsed: "Collapsed" };
 const VELOCITY_LABEL = { rising: "Rising", falling: "Falling", steady: "Steady" };
 
@@ -206,6 +292,12 @@ const VELOCITY_LABEL = { rising: "Rising", falling: "Falling", steady: "Steady" 
  * this function intentionally doesn't try to guess that shape yet.
  */
 export function renderSignalPage({ signal, categoryLabel, eyebrowLabel, bodyCopy, watchingText, evidence, clusterCount, claimCopy, premiseStrength, chartPoints }) {
+  const chartSectionHtml =
+    signal.type === "trend"
+      ? renderPoleSpectrumSection(chartPoints, evidence, signal)
+      : renderChartSection(chartPoints, evidence);
+  const statusCardHtml = signal.type === "trend" ? renderPlotStatusCard(signal) : renderClaimCard(claimCopy);
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -252,11 +344,11 @@ ${GENERATED_NOTICE}
   <div class="body-copy">
 ${renderBodyCopy(bodyCopy)}
   </div>
-${renderChartSection(chartPoints, evidence)}
-${renderClaimCard(claimCopy)}
+${chartSectionHtml}
+${statusCardHtml}
 
   <div class="evidence-section">
-    <h2 class="section-heading">Supporting Evidence</h2>
+    <h2 class="section-heading">Documentation</h2>
 ${renderEvidenceSection(evidence)}
   </div>
 

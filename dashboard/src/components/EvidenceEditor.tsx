@@ -5,6 +5,10 @@ export type DraftEvidenceRow = Omit<EvidenceRow, "id" | "created_at" | "signal_i
 interface Props {
   rows: DraftEvidenceRow[];
   onChange: (rows: DraftEvidenceRow[]) => void;
+  // Set for Living Topics — relabels the Direction dropdown to name the
+  // topic's actual two poles instead of "Supports"/"Contradicts". Same
+  // supports/contradicts values underneath either way.
+  poleLabels?: { a: string; b: string } | null;
 }
 
 function emptyRow(sortOrder: number): DraftEvidenceRow {
@@ -20,7 +24,10 @@ function emptyRow(sortOrder: number): DraftEvidenceRow {
   };
 }
 
-export function EvidenceEditor({ rows, onChange }: Props) {
+export function EvidenceEditor({ rows, onChange, poleLabels }: Props) {
+  const supportsLabel = poleLabels ? `Toward ${poleLabels.a}` : "Supports";
+  const contradictsLabel = poleLabels ? `Toward ${poleLabels.b}` : "Contradicts";
+
   function updateRow(index: number, patch: Partial<DraftEvidenceRow>) {
     onChange(rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   }
@@ -77,8 +84,8 @@ export function EvidenceEditor({ rows, onChange }: Props) {
                     updateRow(i, { direction: e.target.value as DraftEvidenceRow["direction"] })
                   }
                 >
-                  <option value="supports">Supports</option>
-                  <option value="contradicts">Contradicts</option>
+                  <option value="supports">{supportsLabel}</option>
+                  <option value="contradicts">{contradictsLabel}</option>
                 </select>
               </td>
               <td>

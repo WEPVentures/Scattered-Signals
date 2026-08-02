@@ -33,6 +33,11 @@ export interface SignalRow {
   created_at: string;
   updated_at: string;
   premise: string | null;
+  // Living Topic only ("trend"); null for claims. Editorially assigned, same
+  // workflow as premise.
+  pole_a_label: string | null;
+  pole_b_label: string | null;
+  current_read: string | null;
 }
 
 export interface EvidenceRow {
@@ -270,6 +275,9 @@ export interface DraftSignalRow {
   proposed_homepage_meta: string | null;
   proposed_premise: string | null;
   proposed_substack_article: string | null;
+  proposed_pole_a_label: string | null;
+  proposed_pole_b_label: string | null;
+  proposed_current_read: string | null;
 }
 
 export interface DraftEvidenceRow {

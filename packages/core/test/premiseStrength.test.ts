@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import {
   computePremiseStrengthTrajectory,
   currentPremiseStrength,
+  currentPoleLean,
   evidenceToChartPoints,
+  evidenceToPlotMovementPoints,
 } from "../src/premiseStrength.ts";
 import type { Evidence } from "../src/types.ts";
 
@@ -124,4 +126,59 @@ test("evidenceToChartPoints normalizes x between 0 and 1 in chronological order"
   assert.equal(points[0].x, 0);
   assert.equal(points[points.length - 1].x, 1);
   assert.ok(points[1].x > 0 && points[1].x < 1);
+});
+
+test("currentPoleLean is neutral (0) with no evidence", () => {
+  assert.equal(currentPoleLean([]), 0);
+});
+
+test("currentPoleLean is positive when evidence supports (leans pole A)", () => {
+  const evidence = [evidenceItem({ tier: "1", direction: "supports", clusterNo: 1 })];
+  assert.ok(currentPoleLean(evidence) > 0);
+});
+
+test("currentPoleLean is negative when evidence contradicts (leans pole B)", () => {
+  const evidence = [evidenceItem({ tier: "1", direction: "contradicts", clusterNo: 1 })];
+  assert.ok(currentPoleLean(evidence) < 0);
+});
+
+test("currentPoleLean stays strictly within (-1, 1) regardless of how lopsided the evidence is", () => {
+  const evidence = Array.from({ length: 12 }, (_, i) =>
+    evidenceItem({ tier: "1", direction: "supports", clusterNo: i + 1, sourcePublishedAt: `2026-01-${i + 1}` }),
+  );
+  const lean = currentPoleLean(evidence);
+  assert.ok(lean > 0 && lean < 1);
+});
+
+test("more Tier 1 support pushes currentPoleLean closer to +1 than a single item does", () => {
+  const oneItem = [evidenceItem({ tier: "1", direction: "supports", clusterNo: 1, sourcePublishedAt: "2026-01-01" })];
+  const threeItems = [
+    evidenceItem({ tier: "1", direction: "supports", clusterNo: 1, sourcePublishedAt: "2026-01-01" }),
+    evidenceItem({ tier: "1", direction: "supports", clusterNo: 2, sourcePublishedAt: "2026-02-01" }),
+    evidenceItem({ tier: "1", direction: "supports", clusterNo: 3, sourcePublishedAt: "2026-03-01" }),
+  ];
+  assert.ok(currentPoleLean(threeItems) > currentPoleLean(oneItem));
+});
+
+test("evidenceToPlotMovementPoints returns empty for no evidence", () => {
+  assert.deepEqual(evidenceToPlotMovementPoints([]), []);
+});
+
+test("evidenceToPlotMovementPoints returns empty when every item has the same effective date", () => {
+  const evidence = [
+    evidenceItem({ createdAt: "2026-07-01T00:00:00.000Z", clusterNo: 1 }),
+    evidenceItem({ createdAt: "2026-07-01T00:00:00.000Z", clusterNo: 2 }),
+  ];
+  assert.deepEqual(evidenceToPlotMovementPoints(evidence), []);
+});
+
+test("evidenceToPlotMovementPoints' y sign matches direction and stays within (-1, 1)", () => {
+  const evidence = [
+    evidenceItem({ tier: "1", direction: "supports", clusterNo: 1, sourcePublishedAt: "2026-01-01" }),
+    evidenceItem({ tier: "1", direction: "contradicts", clusterNo: 2, sourcePublishedAt: "2026-02-01" }),
+  ];
+  const points = evidenceToPlotMovementPoints(evidence);
+  assert.ok(points[0].y > 0 && points[0].y < 1); // one supporting item -> leans positive (pole A)
+  assert.ok(points[1].y < points[0].y); // the contradicting item pulls it back down
+  assert.ok(points.every((p) => p.y > -1 && p.y < 1));
 });

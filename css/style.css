@@ -396,7 +396,9 @@ a.signal-row:hover {
   display: block;
 }
 
-/* ---------- Evidence Strength over time chart ---------- */
+/* ---------- Plot Movement chart (Bounded Claim strength scale and Living
+   Topic pole spectrum both reuse these — axis/tick lines and pole labels
+   are inline SVG attributes on generated markup, not separate classes). ---------- */
 
 .chart-section {
   padding: 32px 0 8px 0;
@@ -458,7 +460,8 @@ a.signal-row:hover {
   margin: 0 0 16px 0;
 }
 
-/* ---------- Bordered callout card (claim tracker) ---------- */
+/* ---------- Bordered callout card (Plot in Progress/Outcome for Bounded
+   Claims, Plot Status for Living Topics) ---------- */
 
 .card {
   margin: 8px 0 40px 0;

@@ -1,7 +1,7 @@
 import type { Signal } from "./types.ts";
 
 export interface ClaimCardCopy {
-  /** Card header. Always "Claim in Progress" or "Claim Outcome" — never "Claim Resolved". */
+  /** Card header. Always "Plot in Progress" or "Plot Outcome" — never "Claim Resolved"/"Plot Resolved". */
   label: string;
   /** The claim text itself, verbatim (e.g. the actual charge or commitment). */
   claimText: string;
@@ -37,7 +37,7 @@ export function formatClaimStatus(signal: Signal): ClaimCardCopy | null {
       ? ` · Resolves ${signal.claimResolvesAround}`
       : "";
     return {
-      label: "Claim in Progress",
+      label: "Plot in Progress",
       claimText: signal.claimText,
       statusText: `Ongoing${resolves} · Will be scored Confirmed / Disproven / Partial`,
       isMissed: false,
@@ -54,7 +54,7 @@ export function formatClaimStatus(signal: Signal): ClaimCardCopy | null {
   }
 
   return {
-    label: "Claim Outcome",
+    label: "Plot Outcome",
     claimText: signal.claimText,
     statusText: signal.claimResolutionNote,
     isMissed: signal.claimOutcome === "missed",

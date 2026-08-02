@@ -64,7 +64,7 @@ export const handler: BackgroundHandler = async (event) => {
 
   const { data: signal, error: signalError } = await admin
     .from("signals")
-    .select("id, title, premise, category_id, type")
+    .select("id, title, premise, category_id, type, pole_a_label, pole_b_label")
     .eq("id", signalId)
     .single();
   if (signalError || !signal) {
@@ -134,6 +134,8 @@ export const handler: BackgroundHandler = async (event) => {
       existingPremise: signal.premise,
       existingEvidenceSummary,
       cutoffDate,
+      existingPoleALabel: signal.pole_a_label,
+      existingPoleBLabel: signal.pole_b_label,
     })}`;
 
     const { draft, citations, costEstimateUsd } = await runResearchPipeline({
@@ -162,6 +164,9 @@ export const handler: BackgroundHandler = async (event) => {
         proposed_meta_description: draft.meta_description,
         proposed_homepage_meta: draft.homepage_meta,
         proposed_premise: draft.premise,
+        proposed_pole_a_label: draft.pole_a_label ?? signal.pole_a_label,
+        proposed_pole_b_label: draft.pole_b_label ?? signal.pole_b_label,
+        proposed_current_read: draft.current_read,
         proposed_substack_article: `# ${draft.substack_article.headline}\n\n*${draft.substack_article.subhead}*\n\n${draft.substack_article.body}`,
         status: "pending_review",
       })

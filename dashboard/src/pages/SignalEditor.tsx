@@ -1,6 +1,11 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { formatClaimStatus, computeClusterCount, currentPremiseStrength } from "@scattered-signals/core";
+import {
+  formatClaimStatus,
+  computeClusterCount,
+  currentPremiseStrength,
+  currentPoleLean,
+} from "@scattered-signals/core";
 import type { Signal } from "@scattered-signals/core";
 import {
   listCategories,
@@ -43,6 +48,9 @@ const emptySignal: Partial<SignalRow> = {
   claim_resolution_note: null,
   status: "draft",
   premise: null,
+  pole_a_label: null,
+  pole_b_label: null,
+  current_read: null,
 };
 
 function toEditorEvidenceRow(e: {
@@ -123,6 +131,9 @@ export function SignalEditor() {
           premise: draft.proposed_premise,
           claim_text: draft.proposed_claim_text,
           claim_resolves_around: draft.proposed_claim_resolves_around,
+          pole_a_label: draft.proposed_pole_a_label,
+          pole_b_label: draft.proposed_pole_b_label,
+          current_read: draft.proposed_current_read,
         }));
         setBodyCopy(draft.proposed_body_copy);
         setWatchingText(draft.proposed_watching_text ?? "");
@@ -150,7 +161,13 @@ export function SignalEditor() {
           listDraftEvidence(draftId),
         ]);
         if (cancelled) return;
-        setSignal((prev) => ({ ...prev, premise: draft.proposed_premise ?? prev.premise }));
+        setSignal((prev) => ({
+          ...prev,
+          premise: draft.proposed_premise ?? prev.premise,
+          pole_a_label: draft.proposed_pole_a_label ?? prev.pole_a_label,
+          pole_b_label: draft.proposed_pole_b_label ?? prev.pole_b_label,
+          current_read: draft.proposed_current_read ?? prev.current_read,
+        }));
         setBodyCopy(draft.proposed_body_copy);
         setEvidenceRows((prev) => [...prev, ...draftEvidence.map(toEditorEvidenceRow)]);
       }
@@ -179,6 +196,11 @@ export function SignalEditor() {
   );
   const clusterCount = computeClusterCount(coreEvidencePreview);
   const computedPremiseStrength = currentPremiseStrength(coreEvidencePreview);
+  const computedPoleLean = currentPoleLean(coreEvidencePreview);
+  const poleLabels =
+    signal.type === "trend" && signal.pole_a_label && signal.pole_b_label
+      ? { a: signal.pole_a_label, b: signal.pole_b_label }
+      : null;
 
   async function handleSave(publish: boolean) {
     setSaving(true);
@@ -408,11 +430,29 @@ export function SignalEditor() {
         />
       </label>
 
-      <p style={{ fontSize: 13, color: "#6e6e73", margin: "0 0 4px 0" }}>
-        Evidence Strength: <strong style={{ color: "#1d1d1f" }}>{PREMISE_STRENGTH_LABEL[computedPremiseStrength]}</strong> —
-        computed automatically from your evidence (tier, direction, and source date). This is what
-        the public page shows; there's nothing to set by hand.
-      </p>
+      {signal.type === "trend" ? (
+        <p style={{ fontSize: 13, color: "#6e6e73", margin: "0 0 4px 0" }}>
+          {poleLabels ? (
+            <>
+              Currently leaning toward{" "}
+              <strong style={{ color: "#1d1d1f" }}>
+                {computedPoleLean === 0 ? "neutral" : computedPoleLean > 0 ? poleLabels.a : poleLabels.b}
+              </strong>{" "}
+              ({Math.round(Math.abs(computedPoleLean) * 100)}%) — computed automatically from your
+              evidence (tier, direction, and source date). This is what the public page's Plot
+              Movement chart shows.
+            </>
+          ) : (
+            "Set both pole labels below to see the computed lean."
+          )}
+        </p>
+      ) : (
+        <p style={{ fontSize: 13, color: "#6e6e73", margin: "0 0 4px 0" }}>
+          Evidence Strength: <strong style={{ color: "#1d1d1f" }}>{PREMISE_STRENGTH_LABEL[computedPremiseStrength]}</strong> —
+          computed automatically from your evidence (tier, direction, and source date). This is what
+          the public page shows; there's nothing to set by hand.
+        </p>
+      )}
 
       <label style={fieldStyle}>
         Velocity
@@ -511,8 +551,40 @@ export function SignalEditor() {
         </fieldset>
       )}
 
+      {signal.type === "trend" && (
+        <fieldset style={{ marginTop: 16, border: "1px solid #d2d2d7", padding: 12 }}>
+          <legend>Living Topic poles</legend>
+          <label style={fieldStyle}>
+            Pole A label — short phrase, e.g. "Open-source"
+            <input
+              value={signal.pole_a_label ?? ""}
+              onChange={(e) => setSignal({ ...signal, pole_a_label: e.target.value })}
+              style={inputStyle}
+            />
+          </label>
+          <label style={fieldStyle}>
+            Pole B label — short phrase, e.g. "Private"
+            <input
+              value={signal.pole_b_label ?? ""}
+              onChange={(e) => setSignal({ ...signal, pole_b_label: e.target.value })}
+              style={inputStyle}
+            />
+          </label>
+          <label style={fieldStyle}>
+            Current read — short summary of where the narrative stands right now.
+            Refreshed on each research/refresh pass; the premise above isn't repeated here.
+            <textarea
+              value={signal.current_read ?? ""}
+              onChange={(e) => setSignal({ ...signal, current_read: e.target.value })}
+              rows={2}
+              style={inputStyle}
+            />
+          </label>
+        </fieldset>
+      )}
+
       <h2 style={{ fontSize: 16, marginTop: 24 }}>Evidence</h2>
-      <EvidenceEditor rows={evidenceRows} onChange={setEvidenceRows} />
+      <EvidenceEditor rows={evidenceRows} onChange={setEvidenceRows} poleLabels={poleLabels} />
       <p style={{ fontSize: 13, color: "#6e6e73" }}>Cluster count preview: {clusterCount}</p>
 
       {error && <p style={{ color: "#a6291e" }}>{error}</p>}

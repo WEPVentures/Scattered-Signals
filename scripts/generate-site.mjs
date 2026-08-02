@@ -14,6 +14,7 @@ import {
   computeClusterCount,
   currentPremiseStrength,
   evidenceToChartPoints,
+  evidenceToPlotMovementPoints,
 } from "../packages/core/src/index.ts";
 import { renderSignalPage, renderIndexPage } from "./render.mjs";
 
@@ -141,7 +142,8 @@ async function main() {
     const coreEvidence = toCoreEvidenceList(evidence);
     const clusterCount = computeClusterCount(coreEvidence);
     const premiseStrength = currentPremiseStrength(coreEvidence);
-    const chartPoints = evidenceToChartPoints(coreEvidence);
+    const chartPoints =
+      signal.type === "trend" ? evidenceToPlotMovementPoints(coreEvidence) : evidenceToChartPoints(coreEvidence);
 
     let claimCopy;
     try {

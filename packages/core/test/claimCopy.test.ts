@@ -28,7 +28,7 @@ function baseSignal(overrides: Partial<Signal> = {}): Signal {
 test("formatClaimStatus never emits the bare 'Claim Resolved' verdict label", () => {
   const result = formatClaimStatus(baseSignal());
   assert.ok(result);
-  assert.equal(result!.label, "Claim Outcome");
+  assert.equal(result!.label, "Plot Outcome");
   assert.notEqual(result!.label, "Claim Resolved");
 });
 
@@ -50,7 +50,7 @@ test("formatClaimStatus renders a pending claim without a verdict", () => {
     }),
   );
   assert.ok(result);
-  assert.equal(result!.label, "Claim in Progress");
+  assert.equal(result!.label, "Plot in Progress");
   assert.match(result!.statusText, /Ongoing/);
 });
 

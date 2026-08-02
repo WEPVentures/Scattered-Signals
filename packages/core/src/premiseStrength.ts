@@ -69,14 +69,14 @@ export function currentPremiseStrength(evidence: Evidence[]): ConfidenceLevel {
 }
 
 /**
- * Normalized chart points for the SVG trajectory — same shape/scale as any
- * other chart on the site. Returns [] if there's no real time span to plot
- * (e.g. every item was added in the same dashboard session with no source
- * dates set) — every point would land on the same x, which isn't a
- * timeline, just a stack of overlapping dots.
+ * Shared groundwork for both chart flavors below: places each trajectory
+ * point at its chronological x-position (0..1 across the chart width).
+ * Returns [] if there's no real time span to plot (e.g. every item was added
+ * in the same dashboard session with no source dates set) — every point
+ * would land on the same x, which isn't a timeline, just a stack of
+ * overlapping dots.
  */
-export function evidenceToChartPoints(evidence: Evidence[]): ChartPoint[] {
-  const trajectory = computePremiseStrengthTrajectory(evidence);
+function positionTrajectory(trajectory: TrajectoryPoint[]): Array<{ point: TrajectoryPoint; x: number }> {
   if (trajectory.length === 0) return [];
 
   const first = new Date(trajectory[0].date).getTime();
@@ -84,12 +84,62 @@ export function evidenceToChartPoints(evidence: Evidence[]): ChartPoint[] {
   if (last === first) return [];
 
   const span = last - first;
-
   return trajectory.map((point) => ({
+    point,
     x: (new Date(point.date).getTime() - first) / span,
+  }));
+}
+
+/**
+ * Normalized chart points for the SVG trajectory — same shape/scale as any
+ * other chart on the site. Used for Bounded Claims: y is one of the 4
+ * Evidence Strength levels.
+ */
+export function evidenceToChartPoints(evidence: Evidence[]): ChartPoint[] {
+  const positioned = positionTrajectory(computePremiseStrengthTrajectory(evidence));
+
+  return positioned.map(({ point, x }) => ({
+    x,
     y: CONFIDENCE_Y[point.label],
     label: point.evidence.sourceName,
     isoDate: point.date,
     evidenceId: point.evidence.id,
   }));
+}
+
+// How quickly the line eases toward a pole. tanh(score / SATURATION) means a
+// single decisive Tier-1 item (weight 3) alone doesn't slam the line to the
+// rail — same order of magnitude as scoreToLevel's own ±3 thresholds, just
+// applied continuously instead of bucketed into 4 labels.
+const POLE_SATURATION = 4;
+
+/**
+ * Living Topics don't converge on one true/false premise, so instead of
+ * bucketing the cumulative score into 4 discrete Evidence Strength levels,
+ * this squashes it continuously into -1..1 — a position on the spectrum
+ * between the topic's two editorially-assigned narrative poles (+1 = fully
+ * pole A, -1 = fully pole B, 0 = the neutral midline). Same underlying
+ * tier-weighted cumulative score as evidenceToChartPoints; only the final
+ * mapping differs.
+ */
+export function evidenceToPlotMovementPoints(evidence: Evidence[]): ChartPoint[] {
+  const positioned = positionTrajectory(computePremiseStrengthTrajectory(evidence));
+
+  return positioned.map(({ point, x }) => ({
+    x,
+    y: Math.tanh(point.cumulativeScore / POLE_SATURATION),
+    label: point.evidence.sourceName,
+    isoDate: point.date,
+    evidenceId: point.evidence.id,
+  }));
+}
+
+/**
+ * The current pole-lean — the last trajectory point's squashed score, for
+ * the dashboard's live preview. 0 (neutral) with no evidence yet.
+ */
+export function currentPoleLean(evidence: Evidence[]): number {
+  const trajectory = computePremiseStrengthTrajectory(evidence);
+  if (trajectory.length === 0) return 0;
+  return Math.tanh(trajectory[trajectory.length - 1].cumulativeScore / POLE_SATURATION);
 }
