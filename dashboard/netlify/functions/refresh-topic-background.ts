@@ -61,7 +61,7 @@ export default async (req: Request) => {
     .eq("id", signalId)
     .single();
   if (signalError || !signal) {
-    return new Response("Signal not found", { status: 404 });
+    return new Response("Topic not found", { status: 404 });
   }
 
   const { data: evidence, error: evidenceError } = await admin

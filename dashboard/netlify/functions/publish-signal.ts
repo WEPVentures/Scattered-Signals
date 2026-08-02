@@ -55,10 +55,10 @@ export default async (req: Request) => {
     .single();
 
   if (signalError || !signal) {
-    return new Response("Signal not found", { status: 404 });
+    return new Response("Topic not found", { status: 404 });
   }
   if (signal.status !== "published") {
-    return new Response("Signal is not marked published — nothing to build", { status: 409 });
+    return new Response("Topic is not marked published — nothing to build", { status: 409 });
   }
 
   const hookRes = await fetch(buildHookUrl, { method: "POST" });

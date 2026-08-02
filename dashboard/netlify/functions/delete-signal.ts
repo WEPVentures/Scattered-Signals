@@ -54,7 +54,7 @@ export default async (req: Request) => {
     .single();
 
   if (signalError || !signal) {
-    return new Response("Signal not found", { status: 404 });
+    return new Response("Topic not found", { status: 404 });
   }
 
   const wasPublished = signal.status === "published";

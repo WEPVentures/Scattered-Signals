@@ -86,11 +86,11 @@ export function ResearchTopic() {
 
   return (
     <div style={{ maxWidth: 700, margin: "40px auto", fontFamily: "sans-serif", fontSize: 14 }}>
-      <h1 style={{ fontSize: 20 }}>{resumeTopicId ? "Refreshing signal" : "Research a new topic"}</h1>
+      <h1 style={{ fontSize: 20 }}>{resumeTopicId ? "Refreshing topic" : "Research a new topic"}</h1>
       {!resumeTopicId && (
         <p style={{ color: "#6e6e73" }}>
           Describe what you want researched, in your own words — the same way you'd ask in this chat.
-          A background job will search for real, dated sources, then bring back a draft signal (and a
+          A background job will search for real, dated sources, then bring back a draft topic (and a
           Substack article draft) for you to review.
         </p>
       )}
@@ -163,7 +163,7 @@ export function ResearchTopic() {
           {(status === "queued" || status === "researching") && (
             <p style={{ color: "#6e6e73" }}>
               Researching — this can take a few minutes. Feel free to leave this page; the draft
-              will be waiting in the signal list when it's ready.
+              will be waiting on the Topics page when it's ready.
             </p>
           )}
           {error && <p style={{ color: "#a6291e" }}>{error}</p>}

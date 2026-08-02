@@ -71,10 +71,9 @@ export function SignalList() {
   return (
     <div style={{ maxWidth: 800, margin: "40px auto", fontFamily: "sans-serif" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1 style={{ fontSize: 20 }}>Signals</h1>
+        <h1 style={{ fontSize: 20 }}>Topics</h1>
         <div style={{ display: "flex", gap: 16 }}>
           <Link to="/research">+ Research new topic</Link>
-          <Link to="/signals/new">+ New signal</Link>
         </div>
       </div>
       {error && <p style={{ color: "#a6291e" }}>{error}</p>}
@@ -112,7 +111,7 @@ export function SignalList() {
       )}
 
       {!signals && !error && <p>Loading…</p>}
-      {signals && signals.length === 0 && <p>No signals yet.</p>}
+      {signals && signals.length === 0 && <p>No topics yet.</p>}
       <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 16, fontSize: 14 }}>
         <tbody>
           {signals?.map((s) => (

@@ -290,7 +290,7 @@ export function SignalEditor() {
 
   return (
     <div style={{ maxWidth: 800, margin: "40px auto", fontFamily: "sans-serif", fontSize: 14 }}>
-      <h1 style={{ fontSize: 20 }}>{isNew ? "New signal" : signal.title}</h1>
+      <h1 style={{ fontSize: 20 }}>{isNew ? "New topic" : signal.title}</h1>
 
       <label style={fieldStyle}>
         Title
@@ -530,7 +530,7 @@ export function SignalEditor() {
             onClick={handleDelete}
             style={{ color: "#a6291e", background: "none", border: "1px solid #a6291e", borderRadius: 6, padding: "6px 12px", cursor: "pointer" }}
           >
-            {deleting ? "Deleting…" : "Delete signal"}
+            {deleting ? "Deleting…" : "Delete topic"}
           </button>
         )}
       </div>

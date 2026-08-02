@@ -154,8 +154,8 @@ async function main() {
       chartPoints,
     });
 
-    await mkdir(path.join(ROOT, "signals"), { recursive: true });
-    await writeFile(path.join(ROOT, "signals", `${signal.slug}.html`), html);
+    await mkdir(path.join(ROOT, "topics"), { recursive: true });
+    await writeFile(path.join(ROOT, "topics", `${signal.slug}.html`), html);
 
     const statusPill =
       signal.type === "claim" && signal.claim_status === "resolved"

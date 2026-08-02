@@ -6,3 +6,10 @@
 # Netlify's site settings (Site configuration > Environment variables) —
 # not committed here. The service role key bypasses RLS, so keep it out of
 # the dashboard site's (client-exposed) build — it belongs only here.
+
+# Article pages moved from /signals/ to /topics/ — preserves any existing
+# backlinks, bookmarks, or search-indexed URLs from before the rename.
+[[redirects]]
+  from = "/signals/*"
+  to = "/topics/:splat"
+  status = 301
