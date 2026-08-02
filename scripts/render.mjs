@@ -84,7 +84,7 @@ const PREMISE_STRENGTH_TICKS = [
 // regardless of which mechanic is underneath.
 const CHART_HEADING = "Plot Movement";
 const CHART_CAPTION =
-  "Rising means the evidence is accumulating in support of the plot. Falling means it's moving against it.";
+  "Rising means content is accumulating in support of the plot. Falling means it's moving against it.";
 
 /**
  * Positions points along a polyline into numbered circles + a row-assigned
