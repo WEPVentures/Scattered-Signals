@@ -1,3 +1,4 @@
+import type { BackgroundHandler } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
 import { currentPremiseStrength } from "@scattered-signals/core";
 import {
@@ -7,32 +8,36 @@ import {
   runResearchPipeline,
 } from "./lib/researchPipeline.ts";
 
-// Background Function — the `background: true` config below (not a
-// filename suffix; that was the deprecated V1 convention and mixing it with
-// this file's V2 export-default syntax is what caused "handler is not a
-// function") is what makes Netlify run this async up to 15 minutes and
-// return a 202 to the caller immediately; the real result is polled from
-// research_topics/draft_signals, not the HTTP response. Verifies the
+// Background Function — the "-background" filename suffix is what makes
+// Netlify run this async up to 15 minutes; it also means this must use the
+// classic (event, context) => ... handler export, not the modern
+// `export default (req: Request) =>` style used by publish-signal.ts and
+// delete-signal.ts (those are synchronous functions, where the modern style
+// works fine — background execution specifically still requires the
+// original Lambda-compatible signature). Background handlers have no
+// response contract the caller ever sees (Netlify sends a 202 immediately,
+// independent of whatever this returns), so failures are only visible via
+// research_topics/research_runs, not a returned status/body. Verifies the
 // caller's session the same way publish-signal.ts and delete-signal.ts do,
 // then runs the two-call research pipeline and writes a pending_review
 // draft — nothing here ever touches the real signals/evidence tables
 // directly.
 
-export const config = { background: true };
-
 function formatSubstackArticle(article: { headline: string; subhead: string; body: string }): string {
   return `# ${article.headline}\n\n*${article.subhead}*\n\n${article.body}`;
 }
 
-export default async (req: Request) => {
-  if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+export const handler: BackgroundHandler = async (event) => {
+  if (event.httpMethod !== "POST") {
+    console.error("research-topic-background: rejected non-POST method", event.httpMethod);
+    return;
   }
 
-  const authHeader = req.headers.get("authorization") ?? "";
+  const authHeader = event.headers.authorization ?? event.headers.Authorization ?? "";
   const token = authHeader.replace(/^Bearer\s+/i, "");
   if (!token) {
-    return new Response("Missing Authorization header", { status: 401 });
+    console.error("research-topic-background: missing Authorization header");
+    return;
   }
 
   const supabaseUrl = process.env.SUPABASE_URL?.trim();
@@ -40,35 +45,39 @@ export default async (req: Request) => {
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY?.trim();
 
   if (!supabaseUrl || !serviceRoleKey || !anthropicApiKey) {
-    return new Response("Server misconfigured: missing Supabase or Anthropic env vars", { status: 500 });
+    console.error("research-topic-background: missing Supabase or Anthropic env vars");
+    return;
   }
 
   const admin = createClient(supabaseUrl, serviceRoleKey);
 
   const { data: userData, error: userError } = await admin.auth.getUser(token);
   if (userError || !userData.user) {
-    return new Response(`Invalid session: ${userError?.message ?? "no user returned"}`, { status: 401 });
+    console.error("research-topic-background: invalid session", userError?.message);
+    return;
   }
 
   // The client creates the research_topics row itself (see
-  // ResearchTopic.tsx) and only sends the id here — this is a Background
-  // Function, so Netlify returns an immediate 202 with no body to the
-  // caller; the client can't get a topicId back from this response. Giving
-  // the client its own pre-created row to poll is what makes that work.
+  // ResearchTopic.tsx) and only sends the id here — a background function's
+  // response is never visible to the caller, so the client can't get a
+  // topicId back from it. Giving the client its own pre-created row to poll
+  // is what makes that work.
   let topicId: string;
   try {
-    const body = await req.json();
+    const body = JSON.parse(event.body ?? "{}");
     topicId = body.topicId;
     if (!topicId) throw new Error("missing topicId");
-  } catch {
-    return new Response("Expected JSON body with topicId", { status: 400 });
+  } catch (e) {
+    console.error("research-topic-background: expected JSON body with topicId", e);
+    return;
   }
 
   const { data: categories, error: categoriesError } = await admin
     .from("categories")
     .select("id, slug");
   if (categoriesError || !categories) {
-    return new Response(`Failed to load categories: ${categoriesError?.message}`, { status: 500 });
+    console.error("research-topic-background: failed to load categories", categoriesError?.message);
+    return;
   }
   const categoryIdBySlug = new Map(categories.map((c) => [c.slug, c.id]));
 
@@ -79,7 +88,8 @@ export default async (req: Request) => {
     .select()
     .single();
   if (topicError || !topic) {
-    return new Response(`Research topic not found: ${topicError?.message}`, { status: 404 });
+    console.error("research-topic-background: research topic not found", topicError?.message);
+    return;
   }
   const notes: string | null = topic.notes;
 
@@ -94,7 +104,9 @@ export default async (req: Request) => {
     .select()
     .single();
   if (runError || !run) {
-    return new Response(`Failed to create research run: ${runError?.message}`, { status: 500 });
+    console.error("research-topic-background: failed to create research run", runError?.message);
+    await admin.from("research_topics").update({ status: "failed" }).eq("id", topic.id);
+    return;
   }
 
   try {
@@ -168,15 +180,11 @@ export default async (req: Request) => {
       .eq("id", run.id);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
+    console.error("research-topic-background: pipeline failed", message);
     await admin.from("research_topics").update({ status: "failed" }).eq("id", topic.id);
     await admin
       .from("research_runs")
       .update({ status: "failed", completed_at: new Date().toISOString(), error_message: message })
       .eq("id", run.id);
   }
-
-  return new Response(JSON.stringify({ topicId: topic.id }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
 };

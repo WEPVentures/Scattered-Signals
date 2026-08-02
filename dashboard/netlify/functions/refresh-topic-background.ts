@@ -1,3 +1,4 @@
+import type { BackgroundHandler } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
 import {
   buildRefreshContext,
@@ -6,24 +7,25 @@ import {
   runResearchPipeline,
 } from "./lib/researchPipeline.ts";
 
-// Background Function — same shape as research-topic.ts, but scoped to
-// "what's new" on an already-published signal instead of a fresh topic.
-// Writes a draft with published_signal_id set so the dashboard knows to
-// open the existing signal (and append, not replace) rather than start a
-// new one. `background: true` (not a "-background" filename suffix — see
-// research-topic.ts) is what makes this run async.
+// Background Function — same shape as research-topic-background.ts (see the
+// comment there for why this must use the classic (event, context) => ...
+// handler export rather than the modern `export default (req: Request) =>`
+// style), but scoped to "what's new" on an already-published signal instead
+// of a fresh topic. Writes a draft with published_signal_id set so the
+// dashboard knows to open the existing signal (and append, not replace)
+// rather than start a new one.
 
-export const config = { background: true };
-
-export default async (req: Request) => {
-  if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+export const handler: BackgroundHandler = async (event) => {
+  if (event.httpMethod !== "POST") {
+    console.error("refresh-topic-background: rejected non-POST method", event.httpMethod);
+    return;
   }
 
-  const authHeader = req.headers.get("authorization") ?? "";
+  const authHeader = event.headers.authorization ?? event.headers.Authorization ?? "";
   const token = authHeader.replace(/^Bearer\s+/i, "");
   if (!token) {
-    return new Response("Missing Authorization header", { status: 401 });
+    console.error("refresh-topic-background: missing Authorization header");
+    return;
   }
 
   const supabaseUrl = process.env.SUPABASE_URL?.trim();
@@ -31,31 +33,33 @@ export default async (req: Request) => {
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY?.trim();
 
   if (!supabaseUrl || !serviceRoleKey || !anthropicApiKey) {
-    return new Response("Server misconfigured: missing Supabase or Anthropic env vars", { status: 500 });
+    console.error("refresh-topic-background: missing Supabase or Anthropic env vars");
+    return;
   }
 
   const admin = createClient(supabaseUrl, serviceRoleKey);
 
   const { data: userData, error: userError } = await admin.auth.getUser(token);
   if (userError || !userData.user) {
-    return new Response(`Invalid session: ${userError?.message ?? "no user returned"}`, { status: 401 });
+    console.error("refresh-topic-background: invalid session", userError?.message);
+    return;
   }
 
   // The client creates the research_topics row itself (see the "Refresh"
   // button handler, mirroring ResearchTopic.tsx) and sends both ids here —
-  // this is a Background Function, so Netlify returns an immediate 202 with
-  // no body to the caller and the client can't get anything back from this
-  // response.
+  // a background function's response is never visible to the caller, so
+  // the client can't get anything back from it.
   let topicId: string;
   let signalId: string;
   try {
-    const body = await req.json();
+    const body = JSON.parse(event.body ?? "{}");
     topicId = body.topicId;
     signalId = body.signalId;
     if (!topicId) throw new Error("missing topicId");
     if (!signalId) throw new Error("missing signalId");
-  } catch {
-    return new Response("Expected JSON body with topicId and signalId", { status: 400 });
+  } catch (e) {
+    console.error("refresh-topic-background: expected JSON body with topicId and signalId", e);
+    return;
   }
 
   const { data: signal, error: signalError } = await admin
@@ -64,7 +68,8 @@ export default async (req: Request) => {
     .eq("id", signalId)
     .single();
   if (signalError || !signal) {
-    return new Response("Topic not found", { status: 404 });
+    console.error("refresh-topic-background: topic not found", signalError?.message);
+    return;
   }
 
   const { data: evidence, error: evidenceError } = await admin
@@ -73,7 +78,8 @@ export default async (req: Request) => {
     .eq("signal_id", signalId)
     .order("sort_order");
   if (evidenceError) {
-    return new Response(`Failed to load evidence: ${evidenceError.message}`, { status: 500 });
+    console.error("refresh-topic-background: failed to load evidence", evidenceError.message);
+    return;
   }
 
   const cutoffDate = (evidence ?? []).reduce((latest, e) => {
@@ -90,7 +96,8 @@ export default async (req: Request) => {
     .from("categories")
     .select("id, slug");
   if (categoriesError || !categories) {
-    return new Response(`Failed to load categories: ${categoriesError?.message}`, { status: 500 });
+    console.error("refresh-topic-background: failed to load categories", categoriesError?.message);
+    return;
   }
   const categoryIdBySlug = new Map(categories.map((c) => [c.slug, c.id]));
 
@@ -101,7 +108,8 @@ export default async (req: Request) => {
     .select()
     .single();
   if (topicError || !topic) {
-    return new Response(`Research topic not found: ${topicError?.message}`, { status: 404 });
+    console.error("refresh-topic-background: research topic not found", topicError?.message);
+    return;
   }
 
   const { data: run, error: runError } = await admin
@@ -115,7 +123,9 @@ export default async (req: Request) => {
     .select()
     .single();
   if (runError || !run) {
-    return new Response(`Failed to create research run: ${runError?.message}`, { status: 500 });
+    console.error("refresh-topic-background: failed to create research run", runError?.message);
+    await admin.from("research_topics").update({ status: "failed" }).eq("id", topic.id);
+    return;
   }
 
   try {
@@ -193,15 +203,11 @@ export default async (req: Request) => {
       .eq("id", run.id);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
+    console.error("refresh-topic-background: pipeline failed", message);
     await admin.from("research_topics").update({ status: "failed" }).eq("id", topic.id);
     await admin
       .from("research_runs")
       .update({ status: "failed", completed_at: new Date().toISOString(), error_message: message })
       .eq("id", run.id);
   }
-
-  return new Response(JSON.stringify({ topicId: topic.id }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
 };

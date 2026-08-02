@@ -22,8 +22,8 @@ export function isResearchTopicStale(topic: ResearchTopicRow): boolean {
  * Starts a brand-new research run. Creates the research_topics row directly
  * (permitted under the "authenticated full access" RLS policy) so we have a
  * topicId to poll before invoking the Background Function — Netlify returns
- * an immediate 202 with no body for a `config = { background: true }`
- * function, so there's no other way to learn the id it's working on.
+ * an immediate 202 with no body for a "-background" function, so there's no
+ * other way to learn the id it's working on.
  */
 export async function startResearch(params: {
   topicText: string;
@@ -40,7 +40,7 @@ export async function startResearch(params: {
     submitted_by: sessionData.session?.user.email ?? null,
   });
 
-  await invokeBackgroundFunction("research-topic", sessionData.session?.access_token, {
+  await invokeBackgroundFunction("research-topic-background", sessionData.session?.access_token, {
     topicId: topic.id,
   });
 
@@ -59,7 +59,7 @@ export async function startRefresh(params: { signalId: string; signalTitle: stri
     submitted_by: sessionData.session?.user.email ?? null,
   });
 
-  await invokeBackgroundFunction("refresh-topic", sessionData.session?.access_token, {
+  await invokeBackgroundFunction("refresh-topic-background", sessionData.session?.access_token, {
     topicId: topic.id,
     signalId: params.signalId,
   });
