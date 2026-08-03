@@ -113,7 +113,7 @@ export const handler: BackgroundHandler = async (event) => {
   try {
     const userPrompt = notes ? `${topic.topic_text}\n\nAdditional context: ${notes}` : topic.topic_text;
 
-    const { draft, citations, costEstimateUsd } = await runResearchPipeline({
+    const { draft, citations, fetchDiagnostics, costEstimateUsd } = await runResearchPipeline({
       apiKey: anthropicApiKey,
       researchSystemPrompt: buildResearchSystemPrompt(),
       factCheckSystemPrompt: buildFactCheckSystemPrompt(),
@@ -181,6 +181,7 @@ export const handler: BackgroundHandler = async (event) => {
         completed_at: new Date().toISOString(),
         cost_estimate_usd: costEstimateUsd,
         citations,
+        fetch_diagnostics: fetchDiagnostics,
       })
       .eq("id", run.id);
   } catch (e) {

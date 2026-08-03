@@ -61,6 +61,7 @@ export interface ResearchDraft {
 export interface PipelineResult {
   draft: ResearchDraft;
   citations: string[];
+  fetchDiagnostics: FetchDiagnostic[];
   costEstimateUsd: number;
 }
 
@@ -106,6 +107,8 @@ web_fetch can only retrieve a URL that already appears in this conversation as a
 For every piece of evidence the researcher cited, use web_fetch on that verified URL and confirm, from the retrieved page itself: that the source actually says what was claimed; that the tier (1/2/3) is justified by what kind of source it really is; and that the direction (supports/contradicts, or pushes toward pole A/B) is a fair reading, not a stretch.
 
 If a citation checks out, keep it as-is. If a detail is off — the wrong tier, a mischaracterized quote, a date that doesn't match the source — correct it. If a URL can't be verified (the fetch fails, the page doesn't say what was claimed, or the source turns out to be misrepresented), drop that item and say so explicitly rather than passing along something unconfirmed. Never wave something through just because losing it would leave less evidence.
+
+If fetches are failing, you don't have real visibility into your own tool's internals, so don't guess at a specific technical cause — no theories about sandboxes, caching, or how the search was run. State plainly what happened (the fetch failed, the source is unverified) and stop there; a confident-sounding but invented explanation is exactly the kind of unverified claim this newsroom doesn't publish, including about itself.
 
 When you're done, write the verified findings back out in the same plain-prose form the researcher used, corrected where needed, ready for the writer. Note briefly what was changed or dropped and why.`;
 }
@@ -232,6 +235,42 @@ function extractCitations(content: Anthropic.ContentBlock[]): string[] {
   return [...urls];
 }
 
+export interface FetchDiagnostic {
+  url: string;
+  ok: boolean;
+  errorCode?: string;
+}
+
+/**
+ * Ground truth for what actually happened on every web_fetch call the
+ * fact-checker made, read directly off the real tool_use/tool_result blocks
+ * — never the model's own prose account of why a fetch failed, which it has
+ * no real visibility into and can end up narrativizing inaccurately.
+ */
+function extractFetchDiagnostics(content: Anthropic.ContentBlock[]): FetchDiagnostic[] {
+  const requestedUrlByToolUseId = new Map<string, string>();
+  for (const block of content) {
+    if (block.type !== "tool_use" || block.name !== "web_fetch") continue;
+    const input = block.input as { url?: unknown } | null;
+    if (input && typeof input.url === "string") requestedUrlByToolUseId.set(block.id, input.url);
+  }
+
+  const diagnostics: FetchDiagnostic[] = [];
+  for (const block of content) {
+    if (block.type !== "web_fetch_tool_result") continue;
+    if (block.content.type === "web_fetch_result") {
+      diagnostics.push({ url: block.content.url, ok: true });
+    } else {
+      diagnostics.push({
+        url: requestedUrlByToolUseId.get(block.tool_use_id) ?? "(unknown URL)",
+        ok: false,
+        errorCode: block.content.error_code,
+      });
+    }
+  }
+  return diagnostics;
+}
+
 function estimateCostUsd(usages: Anthropic.Usage[]): number {
   let cost = 0;
   for (const u of usages) {
@@ -315,9 +354,11 @@ export async function runResearchPipeline(params: {
 
   const usages = [...research.usages, ...factCheck.usages];
 
-  const citations = extractCitations(
-    factCheck.messages.flatMap((m) => (Array.isArray(m.content) ? (m.content as Anthropic.ContentBlock[]) : [])),
+  const factCheckContent = factCheck.messages.flatMap((m) =>
+    Array.isArray(m.content) ? (m.content as Anthropic.ContentBlock[]) : [],
   );
+  const citations = extractCitations(factCheckContent);
+  const fetchDiagnostics = extractFetchDiagnostics(factCheckContent);
 
   const structuringMessages: Anthropic.MessageParam[] = [
     ...factCheck.messages,
@@ -351,6 +392,7 @@ export async function runResearchPipeline(params: {
   return {
     draft,
     citations,
+    fetchDiagnostics,
     costEstimateUsd: estimateCostUsd(usages),
   };
 }
