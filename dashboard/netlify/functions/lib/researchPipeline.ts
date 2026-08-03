@@ -2,22 +2,24 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { Evidence } from "@scattered-signals/core";
 
 // Shared by research-topic-background.ts (new signal) and
-// refresh-topic-background.ts (update an existing one). Three-call
-// pipeline, one conversation carried through all of it: a research call
-// with the web_search server tool (Anthropic runs the search loop itself
-// — no client-side tool_use round trips needed) produces prose findings;
-// a fact-check call with the web_fetch server tool independently
-// re-retrieves every cited URL and corrects or drops anything that
-// doesn't hold up, producing revised prose findings; a structuring call
-// over the fact-checked conversation with no tools and a json_schema
-// output format turns that into the shape the dashboard needs. Same
-// model, three system prompts, one continuous message history — each
-// stage sees everything the one before it did.
+// refresh-topic-background.ts (update an existing one). Two-call pipeline,
+// one conversation carried through both: a research call with the
+// web_search server tool (Anthropic runs the search loop itself — no
+// client-side tool_use round trips needed) produces prose findings; a
+// structuring call over that conversation with no tools and a json_schema
+// output format turns it into the shape the dashboard needs.
+//
+// An independent fact-check phase (web_fetch re-retrieving every cited
+// URL) was tried and pulled back out: web_fetch consistently failed with
+// url_not_in_prior_context across every domain tried, in every design
+// attempted (reusing the researcher's citations, re-searching for them
+// fresh) — see git history on this file. It burned real API spend without
+// ever verifying a single source, so it's not worth re-attempting without
+// new information about why that error was universal.
 
 const MODEL = "claude-opus-5";
 const MAX_TOKENS = 16000;
 const WEB_SEARCH_MAX_USES = 15;
-const WEB_FETCH_MAX_USES = 20;
 const MAX_PAUSE_CONTINUATIONS = 3;
 // $5 / $25 per MTok (input / output) — see packages/core-adjacent docs; keep
 // in sync with whatever model MODEL points at.
@@ -61,7 +63,6 @@ export interface ResearchDraft {
 export interface PipelineResult {
   draft: ResearchDraft;
   citations: string[];
-  fetchDiagnostics: FetchDiagnostic[];
   costEstimateUsd: number;
 }
 
@@ -69,7 +70,7 @@ export interface PipelineResult {
 // BANNED_STATUS_TEXT) enforces this at render time regardless, but stating
 // it up front means the model's first draft is usually already compliant
 // instead of getting rejected on save.
-const NEWSROOM_STANDARDS = `Nutgraph runs a small newsroom, not a single byline — a researcher, a fact-checker, and a writer each take a pass on every assignment, all held to the same seasoned New York Times investigative standard: precise, skeptical of unverified claims, attributed rather than asserted, and unwilling to editorialize past what the evidence actually shows. This applies regardless of how casual, partisan, or unreliable the sources being cited are; the newsroom's own voice never borrows their register.
+const NEWSROOM_STANDARDS = `Nutgraph runs a small newsroom, not a single byline — a researcher and a writer each take a pass on every assignment, both held to the same seasoned New York Times investigative standard: precise, skeptical of unverified claims, attributed rather than asserted, and unwilling to editorialize past what the evidence actually shows. This applies regardless of how casual, partisan, or unreliable the sources being cited are; the newsroom's own voice never borrows their register.
 
 Nutgraph is not a prediction market and must never imply forecasting. Every evidence item cited already happened — a filing, a statement, a ruling, a retraction, a report. Report what the evidence has shown so far; never claim or imply where a story is headed next. That inference belongs to the reader.
 
@@ -85,7 +86,7 @@ Rules that are load-bearing, not stylistic:
    - Tier 3: commentary, opinion, or unverified reports — weighted lowest of the three.
    Write a one-sentence "ai_tier_rationale" per item explaining the tier choice, so a human editor can spot-check the judgment call without re-deriving it.
 
-3. NEVER FABRICATE A SOURCE. Every "source_url" must be a real, working URL actually found via web search or confirmed via web fetch in this conversation — never invented, never guessed, never a plausible-looking placeholder. If there isn't enough genuine evidence to support a claim, say so rather than padding the list.
+3. NEVER FABRICATE A SOURCE. Every "source_url" must be a real, working URL actually found via web search in this conversation — never invented, never guessed, never a plausible-looking placeholder. If there isn't enough genuine evidence to support a claim, say so rather than padding the list.
 
 4. SOURCE DATES. "source_published_at" is when the underlying article/document was actually published, not today's date — read it off the source itself. Use null only if it genuinely can't be determined.
 
@@ -94,29 +95,13 @@ Rules that are load-bearing, not stylistic:
 export function buildResearchSystemPrompt(): string {
   return `${NEWSROOM_STANDARDS}
 
-You are the researcher on this assignment: a beat reporter who works the primary sources. Use web search to gather real, dated, citable sources on the assigned topic. Search broadly first, then follow the specific names, filings, and dates that turn up. Keep searching until you have enough genuine evidence — supporting and contradicting — to actually score the premise, not just enough to fill a quota. When you're done, write up what you found in plain prose so the fact-checker can review it next; don't try to format it as JSON yet. Name each source clearly (publication, headline or subject, approximate date) so the fact-checker can re-locate it independently — exact URLs don't need to survive into your write-up verbatim, since the fact-checker will re-search for each one rather than reuse yours.`;
-}
-
-export function buildFactCheckSystemPrompt(): string {
-  return `${NEWSROOM_STANDARDS}
-
-You are the newsroom's fact-checker, reviewing the researcher's findings earlier in this conversation before they reach the writer. Treat this adversarially, not collaboratively — assume anything above could be wrong until you've independently confirmed it yourself.
-
-Do not try to web_fetch a URL from the researcher's write-up directly, even if it looks like a real, well-formed link — it was typed by the researcher, not retrieved by a tool in this turn, and web_fetch can only retrieve a URL that already appeared as an actual search result earlier in THIS SAME TURN. For every piece of evidence the researcher cited, first use web_search yourself to independently re-locate that exact source (the publication, headline, or subject the researcher named), then use web_fetch on the URL exactly as your own search returned it. This means re-finding everything yourself rather than trusting that the researcher's citation carries over — that's the whole point of independent verification.
-
-Once you've fetched a source this way, confirm from the retrieved page itself: that it actually says what was claimed; that the tier (1/2/3) is justified by what kind of source it really is; and that the direction (supports/contradicts, or pushes toward pole A/B) is a fair reading, not a stretch.
-
-If a citation checks out, keep it as-is. If a detail is off — the wrong tier, a mischaracterized quote, a date that doesn't match the source — correct it. If a URL can't be verified (the fetch fails, the page doesn't say what was claimed, or the source turns out to be misrepresented), drop that item and say so explicitly rather than passing along something unconfirmed. Never wave something through just because losing it would leave less evidence.
-
-If fetches are failing, you don't have real visibility into your own tool's internals, so don't guess at a specific technical cause — no theories about sandboxes, caching, or how the search was run. State plainly what happened (the fetch failed, the source is unverified) and stop there; a confident-sounding but invented explanation is exactly the kind of unverified claim this newsroom doesn't publish, including about itself.
-
-When you're done, write the verified findings back out in the same plain-prose form the researcher used, corrected where needed, ready for the writer. Note briefly what was changed or dropped and why.`;
+You are the researcher on this assignment: a beat reporter who works the primary sources. Use web search to gather real, dated, citable sources on the assigned topic. Search broadly first, then follow the specific names, filings, and dates that turn up. Keep searching until you have enough genuine evidence — supporting and contradicting — to actually score the premise, not just enough to fill a quota. When you're done, write up what you found in plain prose so the writer can turn it into the piece next; don't try to format it as JSON yet.`;
 }
 
 export function buildStructuringSystemPrompt(): string {
   return `${NEWSROOM_STANDARDS}
 
-You are the writer, turning the fact-checker's verified findings from earlier in this conversation into the piece. Convert them into the exact JSON shape requested — do not introduce any source that wasn't already verified above, and do not second-guess the fact-checker's corrections.`;
+You are the writer, turning the researcher's findings from earlier in this conversation into the piece. Convert them into the exact JSON shape requested — do not introduce any source that wasn't already found by the researcher above.`;
 }
 
 export function buildRefreshContext(params: {
@@ -225,50 +210,11 @@ export function buildDraftSchema(categorySlugs: string[]) {
 function extractCitations(content: Anthropic.ContentBlock[]): string[] {
   const urls = new Set<string>();
   for (const block of content) {
-    if (block.type === "web_search_tool_result") {
-      if (!Array.isArray(block.content)) continue; // error result, not a result list
-      for (const result of block.content) urls.add(result.url);
-    } else if (block.type === "web_fetch_tool_result") {
-      if (block.content.type === "web_fetch_result") urls.add(block.content.url);
-    }
+    if (block.type !== "web_search_tool_result") continue;
+    if (!Array.isArray(block.content)) continue; // error result, not a result list
+    for (const result of block.content) urls.add(result.url);
   }
   return [...urls];
-}
-
-export interface FetchDiagnostic {
-  url: string;
-  ok: boolean;
-  errorCode?: string;
-}
-
-/**
- * Ground truth for what actually happened on every web_fetch call the
- * fact-checker made, read directly off the real tool_use/tool_result blocks
- * — never the model's own prose account of why a fetch failed, which it has
- * no real visibility into and can end up narrativizing inaccurately.
- */
-function extractFetchDiagnostics(content: Anthropic.ContentBlock[]): FetchDiagnostic[] {
-  const requestedUrlByToolUseId = new Map<string, string>();
-  for (const block of content) {
-    if (block.type !== "tool_use" || block.name !== "web_fetch") continue;
-    const input = block.input as { url?: unknown } | null;
-    if (input && typeof input.url === "string") requestedUrlByToolUseId.set(block.id, input.url);
-  }
-
-  const diagnostics: FetchDiagnostic[] = [];
-  for (const block of content) {
-    if (block.type !== "web_fetch_tool_result") continue;
-    if (block.content.type === "web_fetch_result") {
-      diagnostics.push({ url: block.content.url, ok: true });
-    } else {
-      diagnostics.push({
-        url: requestedUrlByToolUseId.get(block.tool_use_id) ?? "(unknown URL)",
-        ok: false,
-        errorCode: block.content.error_code,
-      });
-    }
-  }
-  return diagnostics;
 }
 
 function estimateCostUsd(usages: Anthropic.Usage[]): number {
@@ -280,24 +226,17 @@ function estimateCostUsd(usages: Anthropic.Usage[]): number {
   return Math.round(cost * 10000) / 10000;
 }
 
-type ServerTool =
-  | { type: "web_search_20260209"; name: "web_search"; max_uses: number }
-  | { type: "web_fetch_20260209"; name: "web_fetch"; max_uses: number; citations: { enabled: true } };
-
 /**
- * Runs one tool-augmented turn to completion, resuming through the
- * server-side tool loop's own pause_turn checkpoints (it caps itself at ~10
+ * Runs the research call to completion, resuming through the server-side
+ * web_search loop's own pause_turn checkpoints (it caps itself at 10 search
  * rounds per turn — resending the paused turn tells it to keep going).
- * Appends to (and returns) the given messages array so callers can thread
- * one continuous conversation across multiple phases — required for
- * web_fetch, which can only fetch URLs already present in the context.
  */
-async function runToolAugmentedTurn(
+async function runResearchCall(
   client: Anthropic,
   systemPrompt: string,
-  messages: Anthropic.MessageParam[],
-  tools: ServerTool[],
+  userPrompt: string,
 ): Promise<{ messages: Anthropic.MessageParam[]; usages: Anthropic.Usage[] }> {
+  const messages: Anthropic.MessageParam[] = [{ role: "user", content: userPrompt }];
   const usages: Anthropic.Usage[] = [];
 
   for (let i = 0; i < MAX_PAUSE_CONTINUATIONS + 1; i++) {
@@ -307,7 +246,7 @@ async function runToolAugmentedTurn(
       system: systemPrompt,
       thinking: { type: "adaptive" },
       output_config: { effort: "high" },
-      tools,
+      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: WEB_SEARCH_MAX_USES }],
       messages,
     });
     usages.push(response.usage);
@@ -322,53 +261,28 @@ async function runToolAugmentedTurn(
 export async function runResearchPipeline(params: {
   apiKey: string;
   researchSystemPrompt: string;
-  factCheckSystemPrompt: string;
   structuringSystemPrompt: string;
   userPrompt: string;
   categorySlugs: string[];
 }): Promise<PipelineResult> {
   const client = new Anthropic({ apiKey: params.apiKey });
 
-  const research = await runToolAugmentedTurn(
+  const { messages, usages } = await runResearchCall(
     client,
     params.researchSystemPrompt,
-    [{ role: "user", content: params.userPrompt }],
-    [{ type: "web_search_20260209", name: "web_search", max_uses: WEB_SEARCH_MAX_USES }],
+    params.userPrompt,
   );
 
-  const factCheckMessages: Anthropic.MessageParam[] = [
-    ...research.messages,
-    {
-      role: "user",
-      content:
-        "Fact-check the findings above: for each source the researcher named, use web_search to independently re-locate it yourself, then web_fetch the URL your own search returns. Confirm, correct, or drop each item per your instructions.",
-    },
-  ];
-
-  const factCheck = await runToolAugmentedTurn(
-    client,
-    params.factCheckSystemPrompt,
-    factCheckMessages,
-    [
-      { type: "web_search_20260209", name: "web_search", max_uses: WEB_SEARCH_MAX_USES },
-      { type: "web_fetch_20260209", name: "web_fetch", max_uses: WEB_FETCH_MAX_USES, citations: { enabled: true } },
-    ],
+  const citations = extractCitations(
+    messages.flatMap((m) => (Array.isArray(m.content) ? (m.content as Anthropic.ContentBlock[]) : [])),
   );
-
-  const usages = [...research.usages, ...factCheck.usages];
-
-  const factCheckContent = factCheck.messages.flatMap((m) =>
-    Array.isArray(m.content) ? (m.content as Anthropic.ContentBlock[]) : [],
-  );
-  const citations = extractCitations(factCheckContent);
-  const fetchDiagnostics = extractFetchDiagnostics(factCheckContent);
 
   const structuringMessages: Anthropic.MessageParam[] = [
-    ...factCheck.messages,
+    ...messages,
     {
       role: "user",
       content:
-        "Now output the structured draft as a single JSON object matching the requested schema, based only on the fact-checked findings above.",
+        "Now output the structured draft as a single JSON object matching the requested schema, based only on the sources you found above.",
     },
   ];
 
@@ -395,7 +309,6 @@ export async function runResearchPipeline(params: {
   return {
     draft,
     citations,
-    fetchDiagnostics,
     costEstimateUsd: estimateCostUsd(usages),
   };
 }

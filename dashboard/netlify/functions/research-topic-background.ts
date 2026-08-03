@@ -2,7 +2,6 @@ import type { BackgroundHandler } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
 import { currentPremiseStrength } from "@scattered-signals/core";
 import {
-  buildFactCheckSystemPrompt,
   buildResearchSystemPrompt,
   buildStructuringSystemPrompt,
   draftEvidenceToCoreEvidence,
@@ -100,7 +99,7 @@ export const handler: BackgroundHandler = async (event) => {
       topic_id: topic.id,
       status: "running",
       model_used: "claude-opus-5",
-      prompt_version: "v2",
+      prompt_version: "v1",
     })
     .select()
     .single();
@@ -113,10 +112,9 @@ export const handler: BackgroundHandler = async (event) => {
   try {
     const userPrompt = notes ? `${topic.topic_text}\n\nAdditional context: ${notes}` : topic.topic_text;
 
-    const { draft, citations, fetchDiagnostics, costEstimateUsd } = await runResearchPipeline({
+    const { draft, citations, costEstimateUsd } = await runResearchPipeline({
       apiKey: anthropicApiKey,
       researchSystemPrompt: buildResearchSystemPrompt(),
-      factCheckSystemPrompt: buildFactCheckSystemPrompt(),
       structuringSystemPrompt: buildStructuringSystemPrompt(),
       userPrompt,
       categorySlugs: categories.map((c) => c.slug),
@@ -181,7 +179,6 @@ export const handler: BackgroundHandler = async (event) => {
         completed_at: new Date().toISOString(),
         cost_estimate_usd: costEstimateUsd,
         citations,
-        fetch_diagnostics: fetchDiagnostics,
       })
       .eq("id", run.id);
   } catch (e) {
