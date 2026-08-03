@@ -337,8 +337,13 @@ export function SignalEditor() {
   }
 
   return (
-    <div style={{ maxWidth: 800, margin: "40px auto", fontFamily: "sans-serif", fontSize: 14 }}>
-      <h1 style={{ fontSize: 20 }}>{isNew ? "New topic" : signal.title}</h1>
+    <div style={{ maxWidth: 800, fontSize: 14 }}>
+      <div className="page-head">
+        <div>
+          <div className="eyebrow">{isNew ? "New topic" : signal.type === "trend" ? "Living Topic" : "Bounded Claim"}</div>
+          <h1>{isNew ? "New topic" : signal.title}</h1>
+        </div>
+      </div>
 
       <label style={fieldStyle}>
         Title
@@ -603,38 +608,47 @@ export function SignalEditor() {
       )}
 
       <h2 style={{ fontSize: 16, marginTop: 24 }}>Evidence</h2>
-      <EvidenceEditor rows={evidenceRows} onChange={setEvidenceRows} poleLabels={poleLabels} />
-      <p style={{ fontSize: 13, color: "#6e6e73" }}>Cluster count preview: {clusterCount}</p>
 
-      {error && <p style={{ color: "#a6291e" }}>{error}</p>}
-      {notice && <p style={{ color: "#2f7a4d" }}>{notice}</p>}
+      {!isNew && (
+        <div className="action-split">
+          <div className="action-card free">
+            <span className="tag">Free · instant</span>
+            <h5>Add a source yourself</h5>
+            <p>You already have the article. Paste it in below, set tier and direction, and save — the strength score updates immediately.</p>
+          </div>
+          <div className="action-card paid">
+            <span className="tag">Uses API credit</span>
+            <h5>Refresh with AI research</h5>
+            <p>Let the desk search for what's new since the last update and propose sources for your review.</p>
+            <button type="button" className="btn" disabled={refreshing} onClick={handleRefresh}>
+              {refreshing ? "Starting refresh…" : "Refresh topic"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <EvidenceEditor rows={evidenceRows} onChange={setEvidenceRows} poleLabels={poleLabels} />
+      <p style={{ fontSize: 13, color: "var(--text-faint)" }}>Cluster count preview: {clusterCount}</p>
+
+      {error && <div className="banner error">{error}</div>}
+      {notice && <div className="banner notice">{notice}</div>}
 
       <div style={{ marginTop: 24, display: "flex", gap: 12, justifyContent: "space-between" }}>
         <div style={{ display: "flex", gap: 12 }}>
-          <button type="button" disabled={saving} onClick={() => handleSave(false)}>
+          <button type="button" className="btn" disabled={saving} onClick={() => handleSave(false)}>
             Save draft
           </button>
-          <button type="button" disabled={saving} onClick={() => handleSave(true)}>
+          <button type="button" className="btn primary" disabled={saving} onClick={() => handleSave(true)}>
             Publish
           </button>
-          {!isNew && (
-            <button type="button" disabled={refreshing} onClick={handleRefresh}>
-              {refreshing ? "Starting refresh…" : "Refresh from web"}
-            </button>
-          )}
           {substackDraft && (
-            <button type="button" onClick={handleCopySubstack}>
+            <button type="button" className="btn" onClick={handleCopySubstack}>
               {substackCopied ? "Copied!" : "Copy Substack draft"}
             </button>
           )}
         </div>
         {!isNew && (
-          <button
-            type="button"
-            disabled={deleting}
-            onClick={handleDelete}
-            style={{ color: "#a6291e", background: "none", border: "1px solid #a6291e", borderRadius: 6, padding: "6px 12px", cursor: "pointer" }}
-          >
+          <button type="button" className="btn danger" disabled={deleting} onClick={handleDelete}>
             {deleting ? "Deleting…" : "Delete topic"}
           </button>
         )}
