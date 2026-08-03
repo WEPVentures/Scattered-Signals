@@ -1,6 +1,11 @@
 [build]
   command = "node --experimental-strip-types scripts/generate-site.mjs"
   publish = "."
+  # This site only reads scripts/generate-site.mjs's own output and live
+  # Supabase data — it never touches the dashboard app or local migration
+  # files, so a push that only changes those doesn't need a rebuild here.
+  # Exit 0 (no diff outside these paths) skips the build; exit 1 runs it.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ':(exclude)dashboard' ':(exclude)supabase/migrations'"
 
 # Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY set as env vars in
 # Netlify's site settings (Site configuration > Environment variables) —
