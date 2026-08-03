@@ -94,7 +94,7 @@ Rules that are load-bearing, not stylistic:
 export function buildResearchSystemPrompt(): string {
   return `${NEWSROOM_STANDARDS}
 
-You are the researcher on this assignment: a beat reporter who works the primary sources. Use web search to gather real, dated, citable sources on the assigned topic. Search broadly first, then follow the specific names, filings, and dates that turn up. Keep searching until you have enough genuine evidence — supporting and contradicting — to actually score the premise, not just enough to fill a quota. When you're done, write up what you found in plain prose so the fact-checker can review it next; don't try to format it as JSON yet. When you cite a URL in that write-up, copy it verbatim from the search result exactly as returned — don't retype, shorten, or tidy it up. The fact-checker can only fetch a URL that matches one already returned by search; a paraphrased or cleaned-up version of it will fail.`;
+You are the researcher on this assignment: a beat reporter who works the primary sources. Use web search to gather real, dated, citable sources on the assigned topic. Search broadly first, then follow the specific names, filings, and dates that turn up. Keep searching until you have enough genuine evidence — supporting and contradicting — to actually score the premise, not just enough to fill a quota. When you're done, write up what you found in plain prose so the fact-checker can review it next; don't try to format it as JSON yet. Name each source clearly (publication, headline or subject, approximate date) so the fact-checker can re-locate it independently — exact URLs don't need to survive into your write-up verbatim, since the fact-checker will re-search for each one rather than reuse yours.`;
 }
 
 export function buildFactCheckSystemPrompt(): string {
@@ -102,9 +102,9 @@ export function buildFactCheckSystemPrompt(): string {
 
 You are the newsroom's fact-checker, reviewing the researcher's findings earlier in this conversation before they reach the writer. Treat this adversarially, not collaboratively — assume anything above could be wrong until you've independently confirmed it yourself.
 
-web_fetch can only retrieve a URL that already appears in this conversation as an actual search result — not a URL that only exists as text the researcher typed. Before fetching, find the matching source in the raw web_search results earlier in this conversation and copy its URL from there, not from the researcher's prose write-up: their citation may have retyped or cleaned it up, and even a small difference (a trailing slash, a dropped query parameter) will make the fetch fail. If a cited source genuinely can't be located in the raw search results at all, treat it the same as a failed fetch below rather than guessing at the URL.
+Do not try to web_fetch a URL from the researcher's write-up directly, even if it looks like a real, well-formed link — it was typed by the researcher, not retrieved by a tool in this turn, and web_fetch can only retrieve a URL that already appeared as an actual search result earlier in THIS SAME TURN. For every piece of evidence the researcher cited, first use web_search yourself to independently re-locate that exact source (the publication, headline, or subject the researcher named), then use web_fetch on the URL exactly as your own search returned it. This means re-finding everything yourself rather than trusting that the researcher's citation carries over — that's the whole point of independent verification.
 
-For every piece of evidence the researcher cited, use web_fetch on that verified URL and confirm, from the retrieved page itself: that the source actually says what was claimed; that the tier (1/2/3) is justified by what kind of source it really is; and that the direction (supports/contradicts, or pushes toward pole A/B) is a fair reading, not a stretch.
+Once you've fetched a source this way, confirm from the retrieved page itself: that it actually says what was claimed; that the tier (1/2/3) is justified by what kind of source it really is; and that the direction (supports/contradicts, or pushes toward pole A/B) is a fair reading, not a stretch.
 
 If a citation checks out, keep it as-is. If a detail is off — the wrong tier, a mischaracterized quote, a date that doesn't match the source — correct it. If a URL can't be verified (the fetch fails, the page doesn't say what was claimed, or the source turns out to be misrepresented), drop that item and say so explicitly rather than passing along something unconfirmed. Never wave something through just because losing it would leave less evidence.
 
@@ -296,7 +296,7 @@ async function runToolAugmentedTurn(
   client: Anthropic,
   systemPrompt: string,
   messages: Anthropic.MessageParam[],
-  tool: ServerTool,
+  tools: ServerTool[],
 ): Promise<{ messages: Anthropic.MessageParam[]; usages: Anthropic.Usage[] }> {
   const usages: Anthropic.Usage[] = [];
 
@@ -307,7 +307,7 @@ async function runToolAugmentedTurn(
       system: systemPrompt,
       thinking: { type: "adaptive" },
       output_config: { effort: "high" },
-      tools: [tool],
+      tools,
       messages,
     });
     usages.push(response.usage);
@@ -333,7 +333,7 @@ export async function runResearchPipeline(params: {
     client,
     params.researchSystemPrompt,
     [{ role: "user", content: params.userPrompt }],
-    { type: "web_search_20260209", name: "web_search", max_uses: WEB_SEARCH_MAX_USES },
+    [{ type: "web_search_20260209", name: "web_search", max_uses: WEB_SEARCH_MAX_USES }],
   );
 
   const factCheckMessages: Anthropic.MessageParam[] = [
@@ -341,7 +341,7 @@ export async function runResearchPipeline(params: {
     {
       role: "user",
       content:
-        "Fact-check the findings above: use web_fetch to independently re-retrieve every cited URL and confirm, correct, or drop each item per your instructions.",
+        "Fact-check the findings above: for each source the researcher named, use web_search to independently re-locate it yourself, then web_fetch the URL your own search returns. Confirm, correct, or drop each item per your instructions.",
     },
   ];
 
@@ -349,7 +349,10 @@ export async function runResearchPipeline(params: {
     client,
     params.factCheckSystemPrompt,
     factCheckMessages,
-    { type: "web_fetch_20260209", name: "web_fetch", max_uses: WEB_FETCH_MAX_USES, citations: { enabled: true } },
+    [
+      { type: "web_search_20260209", name: "web_search", max_uses: WEB_SEARCH_MAX_USES },
+      { type: "web_fetch_20260209", name: "web_fetch", max_uses: WEB_FETCH_MAX_USES, citations: { enabled: true } },
+    ],
   );
 
   const usages = [...research.usages, ...factCheck.usages];
