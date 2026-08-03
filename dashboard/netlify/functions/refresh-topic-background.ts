@@ -1,6 +1,7 @@
 import type { BackgroundHandler } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
 import {
+  buildFactCheckSystemPrompt,
   buildRefreshContext,
   buildResearchSystemPrompt,
   buildStructuringSystemPrompt,
@@ -118,7 +119,7 @@ export const handler: BackgroundHandler = async (event) => {
       topic_id: topic.id,
       status: "running",
       model_used: "claude-opus-5",
-      prompt_version: "v1",
+      prompt_version: "v2",
     })
     .select()
     .single();
@@ -141,6 +142,7 @@ export const handler: BackgroundHandler = async (event) => {
     const { draft, citations, costEstimateUsd } = await runResearchPipeline({
       apiKey: anthropicApiKey,
       researchSystemPrompt: buildResearchSystemPrompt(),
+      factCheckSystemPrompt: buildFactCheckSystemPrompt(),
       structuringSystemPrompt: buildStructuringSystemPrompt(),
       userPrompt,
       categorySlugs: categories.map((c) => c.slug),
