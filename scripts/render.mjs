@@ -331,6 +331,7 @@ export function renderSignalPage({ signal, categoryLabel, eyebrowLabel, bodyCopy
 <meta property="og:url" content="${canonicalUrl}">
 <meta property="og:site_name" content="Nutgraph">
 <link rel="stylesheet" href="../css/style.css">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
 </head>
 <body>
 ${GENERATED_NOTICE}
@@ -463,6 +464,7 @@ export function renderIndexPage({ rows, categories }) {
 <meta property="og:url" content="${SITE_URL}/">
 <meta property="og:site_name" content="Nutgraph">
 <link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
 ${GENERATED_NOTICE}
